@@ -25,7 +25,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
 
   // Filter States
-  const [location, setLocation] = useState('Sangrur');
+  const [location, setLocation] = useState('');
   const [propType, setPropType] = useState('');
   const [priceRange, setPriceRange] = useState(null);
 
