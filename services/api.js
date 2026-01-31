@@ -6,11 +6,11 @@ import { router } from 'expo-router';
 import Constants from 'expo-constants';
 
 // Use environment variable if available (set in .env or via EAS)
-const PROD_URL = Constants.expoConfig?.extra?.apiUrl || 'https://backend.sangrurestate.com/api';
+const PROD_URL = Constants.expoConfig?.extra?.apiUrl || 'https://13.202.124.101/api';
 
 // 1. Dynamic Host: 10.0.2.2 for Android Emulator, 127.0.0.1 for iOS
 const HOST = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
-const DEV_URL = `https://backend.sangrurestate.com/api`;
+const DEV_URL = `https://13.202.124.101/api`;
 
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? PROD_URL : DEV_URL);
 export const MEDIA_BASE_URL = BASE_URL.replace('/api', '');
