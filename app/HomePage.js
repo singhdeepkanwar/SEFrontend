@@ -104,7 +104,7 @@ export default function HomePage() {
         </View>
         {/* Profile Navigates to ProfilePage */}
         <TouchableOpacity onPress={() => router.push('/ProfilePage')}>
-          <Image source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100&q=80' }} style={styles.avatar} />
+          <Image source={require('../assets/images/cool_avatar.png')} style={styles.avatar} />
         </TouchableOpacity>
       </View>
     </View>

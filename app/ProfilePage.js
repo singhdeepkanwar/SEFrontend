@@ -84,7 +84,7 @@ export default function ProfilePage() {
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         <View style={styles.profileHeader}>
-          <Image source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80' }} style={styles.avatar} />
+          <Image source={require('../assets/images/cool_avatar.png')} style={styles.avatar} />
           {isEditing ? (
             <TextInput
               style={styles.nameInput}
