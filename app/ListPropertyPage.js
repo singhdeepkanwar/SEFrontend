@@ -8,37 +8,45 @@ import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert, Image, ActivityIndicator, Platform
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker'; 
-import { createProperty, updateProperty } from '../services/api'; 
+import * as ImagePicker from 'expo-image-picker';
+import { createProperty, updateProperty, MEDIA_BASE_URL } from '../services/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { validateInput } from '../utils/validation'; 
+import { validateInput } from '../utils/validation';
 
 export default function ListPropertyPage() {
   const router = useRouter();
   const { propertyData } = useLocalSearchParams();
-  
+
   const propertyToEdit = propertyData ? JSON.parse(propertyData) : null;
   const isEditMode = !!propertyToEdit;
   const [loading, setLoading] = useState(false);
 
   // --- FORM STATE ---
-  const [listingType, setListingType] = useState(propertyToEdit?.listing_type === 'RENT' ? 'rent' : 'sell'); 
+  const [listingType, setListingType] = useState(propertyToEdit?.listing_type === 'RENT' ? 'rent' : 'sell');
   const [propertyName, setPropertyName] = useState(propertyToEdit?.title || '');
-  const [propertyType, setPropertyType] = useState(propertyToEdit?.property_type ? 
-      (propertyToEdit.property_type.charAt(0) + propertyToEdit.property_type.slice(1).toLowerCase()) : 'House'); 
-  
+  const [propertyType, setPropertyType] = useState(propertyToEdit?.property_type ?
+    (propertyToEdit.property_type.charAt(0) + propertyToEdit.property_type.slice(1).toLowerCase()) : 'House');
+
   const [price, setPrice] = useState(propertyToEdit?.price ? String(propertyToEdit.price) : '');
-  const [priceUnit, setPriceUnit] = useState('Lakh'); 
-  
+  const [priceUnit, setPriceUnit] = useState('Lakh');
+
   const [bedrooms, setBedrooms] = useState(propertyToEdit?.bedrooms ? String(propertyToEdit.bedrooms) : '');
   const [bathrooms, setBathrooms] = useState(propertyToEdit?.bathrooms ? String(propertyToEdit.bathrooms) : '');
-  
+
   const [area, setArea] = useState(propertyToEdit?.area ? String(propertyToEdit.area) : '');
-  const [areaUnit, setAreaUnit] = useState(propertyToEdit?.unit || 'Gaj'); 
-  
-  const [location, setLocation] = useState(propertyToEdit?.address || 'Sangrur'); 
+  const [areaUnit, setAreaUnit] = useState(propertyToEdit?.unit || 'Gaj');
+
+  const [location, setLocation] = useState(propertyToEdit?.address || 'Sangrur');
   const [description, setDescription] = useState(propertyToEdit?.description || '');
-  const [images, setImages] = useState([]);
+
+  // Initialize images with existing ones if in edit mode
+  const initialImages = propertyToEdit?.images?.map(img => {
+    const path = typeof img === 'string' ? img : img.image;
+    if (!path) return null;
+    return path.startsWith('http') ? path : `${MEDIA_BASE_URL}${path}`;
+  }).filter(Boolean) || [];
+
+  const [images, setImages] = useState(initialImages);
 
   const areaUnits = ["Gaj", "Sq. Yard", "Marla", "Kanal", "Acre", "Sq. Feet"];
   const sellPriceUnits = ["Lakh", "Crore"];
@@ -46,18 +54,18 @@ export default function ListPropertyPage() {
 
   useEffect(() => {
     if (!isEditMode) {
-        if (listingType === 'sell') setPriceUnit('Lakh');
-        else setPriceUnit('Thousand');
+      if (listingType === 'sell') setPriceUnit('Lakh');
+      else setPriceUnit('Thousand');
     }
   }, [listingType]);
 
   const getRawPrice = () => {
-      const p = parseFloat(price);
-      if (isNaN(p)) return 0;
-      if (priceUnit === 'Thousand') return p * 1000;
-      if (priceUnit === 'Lakh') return p * 100000;
-      if (priceUnit === 'Crore') return p * 10000000;
-      return p;
+    const p = parseFloat(price);
+    if (isNaN(p)) return 0;
+    if (priceUnit === 'Thousand') return p * 1000;
+    if (priceUnit === 'Lakh') return p * 100000;
+    if (priceUnit === 'Crore') return p * 10000000;
+    return p;
   };
 
   const handleAddImage = async () => {
@@ -89,54 +97,67 @@ export default function ListPropertyPage() {
     // Validation
     if (!validateInput(propertyName, "Property Name") || !validateInput(description, "Description") || !validateInput(location, "Location")) return;
     if (!propertyName || !price || !area || !location) {
-        Alert.alert("Missing Fields", "Please fill in all required fields.");
-        return;
+      Alert.alert("Missing Fields", "Please fill in all required fields.");
+      return;
     }
-    
+
     setLoading(true);
     try {
-        const formData = new FormData();
-        const unitMap = { "Gaj": "SQYD", "Sq. Yard": "SQYD", "Sq. Feet": "SQFT", "Marla": "MARLA", "Kanal": "KANAL", "Acre": "ACRE", "Sq. Meter": "SQMTR" };
+      const formData = new FormData();
+      const unitMap = { "Gaj": "SQYD", "Sq. Yard": "SQYD", "Sq. Feet": "SQFT", "Marla": "MARLA", "Kanal": "KANAL", "Acre": "ACRE", "Sq. Meter": "SQMTR" };
 
-        formData.append('title', propertyName);
-        formData.append('price', getRawPrice()); 
-        formData.append('description',description);
-        formData.append('address', location);
-        formData.append('city', 'Sangrur'); 
-        formData.append('listing_type', listingType === 'sell' ? 'SALE' : 'RENT');
-        formData.append('property_type', propertyType.toUpperCase());
-        formData.append('area', area);
-        formData.append('unit', unitMap[areaUnit.split('/')[0].trim()] || 'SQFT'); 
-        if (propertyType === 'House') {
-            formData.append('bedrooms', bedrooms);
-            formData.append('bathrooms', bathrooms);
-        }
+      formData.append('title', propertyName);
+      formData.append('price', getRawPrice());
+      formData.append('description', description);
+      formData.append('address', location);
+      formData.append('city', 'Sangrur');
+      formData.append('listing_type', listingType === 'sell' ? 'SALE' : 'RENT');
+      formData.append('property_type', propertyType.toUpperCase());
+      formData.append('area', area);
+      formData.append('unit', unitMap[areaUnit.split('/')[0].trim()] || 'SQFT');
+      if (propertyType === 'House') {
+        formData.append('bedrooms', bedrooms);
+        formData.append('bathrooms', bathrooms);
+      }
 
-        await Promise.all(images.map(async (imgUri) => {
-            const filename = `photo_${new Date().getTime()}.jpg`;
-            const type = 'image/jpeg';
-            if (Platform.OS === 'web') {
-                const response = await fetch(imgUri);
-                const blob = await response.blob();
-                formData.append('uploaded_images', blob, filename);
-            } else {
-                formData.append('uploaded_images', { uri: imgUri, name: filename, type: type });
-            }
+      if (isEditMode) {
+        // Filter out existing remote images - only upload NEW local ones
+        const newImages = images.filter(img => img.startsWith('file://') || img.startsWith('content://') || img.startsWith('data:'));
+
+        await Promise.all(newImages.map(async (imgUri) => {
+          const filename = `photo_${new Date().getTime()}.jpg`;
+          const type = 'image/jpeg';
+          if (Platform.OS === 'web') {
+            const response = await fetch(imgUri);
+            const blob = await response.blob();
+            formData.append('uploaded_images', blob, filename);
+          } else {
+            formData.append('uploaded_images', { uri: imgUri, name: filename, type: type });
+          }
         }));
+        await updateProperty(propertyToEdit.id, formData);
+      } else {
+        await Promise.all(images.map(async (imgUri) => {
+          const filename = `photo_${new Date().getTime()}.jpg`;
+          const type = 'image/jpeg';
+          if (Platform.OS === 'web') {
+            const response = await fetch(imgUri);
+            const blob = await response.blob();
+            formData.append('uploaded_images', blob, filename);
+          } else {
+            formData.append('uploaded_images', { uri: imgUri, name: filename, type: type });
+          }
+        }));
+        await createProperty(formData);
+      }
 
-        if (isEditMode) {
-            await updateProperty(propertyToEdit.id, formData);
-        } else {
-            await createProperty(formData);
-        }
-        
-        Alert.alert("Success", isEditMode ? "Property Updated!" : "Property Listed!");
-        router.back();
+      Alert.alert("Success", isEditMode ? "Property Updated!" : "Property Listed!");
+      router.back();
     } catch (error) {
-        console.error(error);
-        Alert.alert("Error", "Failed to list property.");
+      console.error(error);
+      Alert.alert("Error", "Failed to list property.");
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -145,10 +166,10 @@ export default function ListPropertyPage() {
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}><Text style={styles.backText}>←</Text></TouchableOpacity>
         <Text style={styles.headerTitle}>{isEditMode ? 'Edit Property' : 'List Your Property'}</Text>
-        <View style={{width: 30}} /> 
+        <View style={{ width: 30 }} />
       </View>
 
-      <ScrollView style={styles.formScroll} contentContainerStyle={{paddingBottom: 40}}>
+      <ScrollView style={styles.formScroll} contentContainerStyle={{ paddingBottom: 40 }}>
         <View style={styles.toggleWrapper}>
           <TouchableOpacity style={[styles.toggleOption, listingType === 'sell' && styles.toggleActive]} onPress={() => setListingType('sell')}><Text style={[styles.toggleText, listingType === 'sell' && styles.toggleTextActive]}>Sell</Text></TouchableOpacity>
           <TouchableOpacity style={[styles.toggleOption, listingType === 'rent' && styles.toggleActive]} onPress={() => setListingType('rent')}><Text style={[styles.toggleText, listingType === 'rent' && styles.toggleTextActive]}>Rent</Text></TouchableOpacity>
@@ -166,56 +187,70 @@ export default function ListPropertyPage() {
 
         <Text style={styles.label}>Price</Text>
         <View style={styles.rowInputContainer}>
-          <TextInput style={[styles.input, {flex: 2, marginRight: 10}]} placeholder="Amount" keyboardType="numeric" value={price} onChangeText={setPrice} />
+          <TextInput style={[styles.input, { flex: 2, marginRight: 10 }]} placeholder="Amount" keyboardType="numeric" value={price} onChangeText={setPrice} />
           <View style={styles.unitSelector}>
             {(listingType === 'sell' ? sellPriceUnits : rentPriceUnits).map(u => (
-               <TouchableOpacity key={u} style={[styles.unitBtn, priceUnit === u && styles.unitBtnActive]} onPress={() => setPriceUnit(u)}><Text style={[styles.unitText, priceUnit === u && styles.unitTextActive]}>{u}</Text></TouchableOpacity>
+              <TouchableOpacity key={u} style={[styles.unitBtn, priceUnit === u && styles.unitBtnActive]} onPress={() => setPriceUnit(u)}><Text style={[styles.unitText, priceUnit === u && styles.unitTextActive]}>{u}</Text></TouchableOpacity>
             ))}
           </View>
         </View>
 
         {propertyType === 'House' && (
           <View style={styles.rowInputContainer}>
-            <View style={{flex: 1, marginRight: 10}}><Text style={styles.label}>Bedrooms</Text><TextInput style={styles.input} placeholder="0" keyboardType="numeric" value={bedrooms} onChangeText={setBedrooms} /></View>
-            <View style={{flex: 1}}><Text style={styles.label}>Bathrooms</Text><TextInput style={styles.input} placeholder="0" keyboardType="numeric" value={bathrooms} onChangeText={setBathrooms} /></View>
+            <View style={{ flex: 1, marginRight: 10 }}><Text style={styles.label}>Bedrooms</Text><TextInput style={styles.input} placeholder="0" keyboardType="numeric" value={bedrooms} onChangeText={setBedrooms} /></View>
+            <View style={{ flex: 1 }}><Text style={styles.label}>Bathrooms</Text><TextInput style={styles.input} placeholder="0" keyboardType="numeric" value={bathrooms} onChangeText={setBathrooms} /></View>
           </View>
         )}
 
         <Text style={styles.label}>Area Size</Text>
         <View style={styles.rowInputContainer}>
-          <TextInput style={[styles.input, {flex: 1.5, marginRight: 10}]} placeholder="Size" keyboardType="numeric" value={area} onChangeText={setArea} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flex: 2}}>
+          <TextInput style={[styles.input, { flex: 1.5, marginRight: 10 }]} placeholder="Size" keyboardType="numeric" value={area} onChangeText={setArea} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 2 }}>
             {areaUnits.map(u => (
-               <TouchableOpacity key={u} style={[styles.unitBtn, areaUnit === u && styles.unitBtnActive]} onPress={() => setAreaUnit(u)}><Text style={[styles.unitText, areaUnit === u && styles.unitTextActive]}>{u.split('/')[0]}</Text></TouchableOpacity>
+              <TouchableOpacity key={u} style={[styles.unitBtn, areaUnit === u && styles.unitBtnActive]} onPress={() => setAreaUnit(u)}><Text style={[styles.unitText, areaUnit === u && styles.unitTextActive]}>{u.split('/')[0]}</Text></TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
         <Text style={styles.label}>Location</Text>
         <View style={styles.locationContainer}>
-          <TextInput style={[styles.input, {borderWidth: 0, marginBottom: 0, flex: 1}]} placeholder="Enter Address" value={location} onChangeText={setLocation} />
-          <TouchableOpacity style={styles.pinButton} onPress={() => Alert.alert("Map Feature", "Map Pin Drop here.")}><Text style={{fontSize: 20}}>📍</Text></TouchableOpacity>
+          <TextInput style={[styles.input, { borderWidth: 0, marginBottom: 0, flex: 1 }]} placeholder="Enter Address" value={location} onChangeText={setLocation} />
+          <TouchableOpacity style={styles.pinButton} onPress={() => Alert.alert("Map Feature", "Map Pin Drop here.")}><Text style={{ fontSize: 20 }}>📍</Text></TouchableOpacity>
         </View>
 
         <Text style={styles.label}>Description</Text>
-        <TextInput style={[styles.input, {height: 100, paddingTop: 12}]} placeholder="Describe your property..." multiline={true} value={description} onChangeText={setDescription} />
+        <TextInput style={[styles.input, { height: 100, paddingTop: 12 }]} placeholder="Describe your property..." multiline={true} value={description} onChangeText={setDescription} />
 
         <Text style={styles.label}>Property Images</Text>
-        <View style={{height: 100, marginBottom: 20}}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{alignItems: 'center'}}>
-            <TouchableOpacity style={styles.addImageBtn} onPress={handleAddImage}><Text style={{fontSize: 30, color: '#8890a6', marginTop: -2}}>+</Text></TouchableOpacity>
+        <View style={{ height: 100, marginBottom: 20 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
+            <TouchableOpacity style={styles.addImageBtn} onPress={handleAddImage}><Text style={{ fontSize: 30, color: '#8890a6', marginTop: -2 }}>+</Text></TouchableOpacity>
             {images.map((img, index) => (
               <View key={index} style={styles.thumbnailContainer}>
-                <Image source={{uri: img}} style={styles.thumbnail} />
-                <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemoveImage(index)}><Text style={{color: '#fff', fontSize: 10, fontWeight: 'bold'}}>✕</Text></TouchableOpacity>
+                <Image source={{ uri: img }} style={styles.thumbnail} />
+                <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemoveImage(index)}><Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>✕</Text></TouchableOpacity>
               </View>
             ))}
           </ScrollView>
         </View>
 
-        <TouchableOpacity style={[styles.postButton, loading && {opacity: 0.7}]} onPress={handlePostProperty} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.postButtonText}>{isEditMode ? "Save Changes" : "Post Property"}</Text>}
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+          {isEditMode && (
+            <TouchableOpacity
+              style={[styles.postButton, { flex: 1, backgroundColor: '#8890a6' }]}
+              onPress={() => router.back()}
+            >
+              <Text style={styles.postButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.postButton, { flex: isEditMode ? 2 : 1 }, loading && { opacity: 0.7 }]}
+            onPress={handlePostProperty}
+            disabled={loading}
+          >
+            {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.postButtonText}>{isEditMode ? "Save Changes" : "Post Property"}</Text>}
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -230,7 +265,7 @@ const styles = StyleSheet.create({
   formScroll: { padding: 20 },
   toggleWrapper: { flexDirection: 'row', backgroundColor: '#F7F8FA', borderRadius: 12, padding: 4, marginBottom: 20 },
   toggleOption: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 10 },
-  toggleActive: { backgroundColor: '#fff', shadowColor: "#000", shadowOffset: {width: 0, height: 1}, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  toggleActive: { backgroundColor: '#fff', shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
   toggleText: { fontWeight: '600', color: '#8890a6' },
   toggleTextActive: { color: '#1a1f36' },
   label: { fontSize: 14, fontWeight: '600', color: '#5e6c84', marginBottom: 8, marginTop: 10 },

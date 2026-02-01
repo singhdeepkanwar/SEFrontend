@@ -64,7 +64,10 @@ export default function ManagePropertiesPage() {
             try {
               await deleteProperty(id);
               setMyProperties(prev => prev.filter(p => p.id !== id));
-            } catch (error) { Alert.alert("Error", "Could not delete property."); }
+            } catch (error) {
+              console.error("Delete Error:", error);
+              Alert.alert("Error", "Could not delete property.");
+            }
           }
         }
       ]
@@ -158,5 +161,21 @@ const manageStyles = StyleSheet.create({
   cardPrice: { color: '#fff', fontSize: 14, fontWeight: '700' },
   cardAddress: { color: 'rgba(255,255,255,0.9)', fontSize: 11, marginBottom: 5 },
   editHint: { color: '#FFD700', fontSize: 10, fontWeight: '600', textAlign: 'right', marginTop: 5 },
-  deleteBtn: { position: 'absolute', top: 10, right: -10, backgroundColor: '#ff4d4d', width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, transform: [{ translateX: -20 }] }
+  deleteBtn: {
+    position: 'absolute',
+    top: -10,
+    right: -10,
+    backgroundColor: '#ff4d4d',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 4,
+    zIndex: 999,
+  }
 });
