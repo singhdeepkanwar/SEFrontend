@@ -38,7 +38,7 @@ api.interceptors.request.use(
 export const sendOtp = (phone) => api.post('/auth/send-otp/', { phone });
 export const verifyOtp = (session_id, otp_code) => api.post('/auth/verify-otp/', { session_id, otp_code });
 export const register = (token, profileData) => api.post('/auth/register/', profileData, { headers: { Authorization: `Bearer ${token}` } });
-export const getProperties = (params) => api.get('/properties/', { params });
+export const getProperties = (params) => api.get('/properties/', { params: { ...params, _t: new Date().getTime() } });
 export const toggleFavorite = (id) => api.post(`/properties/${id}/toggle_favorite/`);
 export const inquireProperty = (property) => api.post('/inquiries/', { property });
 export const logout = async () => {
@@ -47,7 +47,7 @@ export const logout = async () => {
 };
 export const getMyProperties = () => api.get('/properties/my_properties/', { params: { _t: new Date().getTime() } });
 export const getFavorites = () => api.get('/properties/favorites/', { params: { _t: new Date().getTime() } });
-export const getInquiries = () => api.get('/inquiries/');
+export const getInquiries = () => api.get('/inquiries/', { params: { _t: new Date().getTime() } });
 
 // Delete a property
 export const deleteProperty = (id) => api.delete(`/properties/${id}/`);

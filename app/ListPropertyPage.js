@@ -47,8 +47,8 @@ export default function ListPropertyPage() {
   const [bedrooms, setBedrooms] = useState(propertyToEdit?.bedrooms ? String(propertyToEdit.bedrooms) : '');
   const [bathrooms, setBathrooms] = useState(propertyToEdit?.bathrooms ? String(propertyToEdit.bathrooms) : '');
 
-  const [area, setArea] = useState(propertyToEdit?.area ? String(propertyToEdit.area) : '');
-  const [areaUnit, setAreaUnit] = useState(propertyToEdit?.unit || 'Gaj');
+  const reverseUnitMap = { "SQYD": "Gaj", "SQFT": "Sq. Feet", "MARLA": "Marla", "KANAL": "Kanal", "ACRE": "Acre", "SQMTR": "Sq. Meter" };
+  const [areaUnit, setAreaUnit] = useState(reverseUnitMap[propertyToEdit?.unit] || propertyToEdit?.unit || 'Gaj');
 
   const [location, setLocation] = useState(propertyToEdit?.address || 'Sangrur');
   const [description, setDescription] = useState(propertyToEdit?.description || '');
@@ -137,7 +137,8 @@ export default function ListPropertyPage() {
       formData.append('listing_type', listingType === 'sell' ? 'SALE' : 'RENT');
       formData.append('property_type', propertyType.toUpperCase());
       formData.append('area', area);
-      formData.append('unit', unitMap[areaUnit]);
+      const unit = unitMap[areaUnit] || (Object.values(unitMap).includes(areaUnit) ? areaUnit : 'SQFT');
+      formData.append('unit', unit);
       if (propertyType === 'House') {
         formData.append('bedrooms', bedrooms);
         formData.append('bathrooms', bathrooms);
@@ -150,9 +151,7 @@ export default function ListPropertyPage() {
 
       if (__DEV__) {
         console.log("FormData being sent:");
-        // Note: FormData.entries() might not work in all RN versions, 
-        // but we can log the parts we know.
-        console.log("Title:", propertyName, "Price:", getRawPrice(), "Type:", propertyType);
+        console.log("Title:", propertyName, "Price:", getRawPrice(), "Unit:", unit, "Area:", area);
         if (isEditMode) console.log("Deleting Images:", deletedImageIds);
       }
 
