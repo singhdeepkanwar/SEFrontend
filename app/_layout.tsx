@@ -1,4 +1,5 @@
 import { Stack, useRouter, useSegments } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api';
@@ -62,11 +63,14 @@ export default function RootLayout() {
     }
   };
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="HomePage" />
-      <Stack.Screen name="SavedPropertiesPage" />
-      <Stack.Screen name="InquiredPropertiesPage" />
-    </Stack>
+    <>
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="HomePage" />
+        <Stack.Screen name="SavedPropertiesPage" />
+        <Stack.Screen name="InquiredPropertiesPage" />
+      </Stack>
+    </>
   );
 }

@@ -6,9 +6,11 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert, Image, ActivityIndicator, Platform
+  StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert, Image, ActivityIndicator, Platform,
+  SafeAreaView
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import Constants from 'expo-constants';
 import { createProperty, updateProperty, MEDIA_BASE_URL } from '../services/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { validateInput } from '../utils/validation';
@@ -27,8 +29,20 @@ export default function ListPropertyPage() {
   const [propertyType, setPropertyType] = useState(propertyToEdit?.property_type ?
     (propertyToEdit.property_type.charAt(0) + propertyToEdit.property_type.slice(1).toLowerCase()) : 'House');
 
-  const [price, setPrice] = useState(propertyToEdit?.price ? String(propertyToEdit.price) : '');
-  const [priceUnit, setPriceUnit] = useState('Lakh');
+  const formatInitialPrice = () => {
+    const raw = parseFloat(propertyToEdit?.price);
+    if (!raw || isNaN(raw)) return { value: '', unit: (listingType === 'rent' ? 'Thousand' : 'Lakh') };
+
+    // Ensure price is displayed correctly based on unit
+    if (raw >= 10000000) return { value: String(raw / 10000000), unit: 'Crore' };
+    if (raw >= 100000) return { value: String(raw / 100000), unit: 'Lakh' };
+    if (raw >= 1000) return { value: String(raw / 1000), unit: 'Thousand' };
+    return { value: String(raw), unit: (listingType === 'rent' ? 'Thousand' : 'Lakh') }; // Default to Lakh for sell, Thousand for rent if small
+  };
+
+  const initialPriceInfo = isEditMode ? formatInitialPrice() : { value: '', unit: (listingType === 'rent' ? 'Thousand' : 'Lakh') };
+  const [price, setPrice] = useState(initialPriceInfo.value);
+  const [priceUnit, setPriceUnit] = useState(initialPriceInfo.unit);
 
   const [bedrooms, setBedrooms] = useState(propertyToEdit?.bedrooms ? String(propertyToEdit.bedrooms) : '');
   const [bathrooms, setBathrooms] = useState(propertyToEdit?.bathrooms ? String(propertyToEdit.bathrooms) : '');
@@ -38,15 +52,20 @@ export default function ListPropertyPage() {
 
   const [location, setLocation] = useState(propertyToEdit?.address || 'Sangrur');
   const [description, setDescription] = useState(propertyToEdit?.description || '');
+  const [amenities, setAmenities] = useState(propertyToEdit?.amenities || []);
 
   // Initialize images with existing ones if in edit mode
+  // Initialize images as objects with metadata
   const initialImages = propertyToEdit?.images?.map(img => {
+    const id = typeof img === 'object' ? img.id : null;
     const path = typeof img === 'string' ? img : img.image;
     if (!path) return null;
-    return path.startsWith('http') ? path : `${MEDIA_BASE_URL}${path}`;
+    const uri = path.startsWith('http') ? path : `${MEDIA_BASE_URL}${path.startsWith('/') ? path.slice(1) : path}`;
+    return { id, uri, isNew: false };
   }).filter(Boolean) || [];
 
-  const [images, setImages] = useState(initialImages);
+  const [images, setImages] = useState(initialImages); // Array of { id, uri, isNew }
+  const [deletedImageIds, setDeletedImageIds] = useState([]); // Array of IDs to delete on backend
 
   const areaUnits = ["Gaj", "Sq. Yard", "Marla", "Kanal", "Acre", "Sq. Feet"];
   const sellPriceUnits = ["Lakh", "Crore"];
@@ -85,11 +104,15 @@ export default function ListPropertyPage() {
       quality: 0.7,
     });
     if (!result.canceled) {
-      setImages([...images, result.assets[0].uri]);
+      setImages([...images, { uri: result.assets[0].uri, isNew: true }]);
     }
   };
 
   const handleRemoveImage = (indexToRemove) => {
+    const removedImage = images[indexToRemove];
+    if (!removedImage.isNew && removedImage.id) {
+      setDeletedImageIds([...deletedImageIds, removedImage.id]);
+    }
     setImages(images.filter((_, index) => index !== indexToRemove));
   };
 
@@ -114,18 +137,32 @@ export default function ListPropertyPage() {
       formData.append('listing_type', listingType === 'sell' ? 'SALE' : 'RENT');
       formData.append('property_type', propertyType.toUpperCase());
       formData.append('area', area);
-      formData.append('unit', unitMap[areaUnit.split('/')[0].trim()] || 'SQFT');
+      formData.append('unit', unitMap[areaUnit]);
       if (propertyType === 'House') {
         formData.append('bedrooms', bedrooms);
         formData.append('bathrooms', bathrooms);
       }
 
-      if (isEditMode) {
-        // Filter out existing remote images - only upload NEW local ones
-        const newImages = images.filter(img => img.startsWith('file://') || img.startsWith('content://') || img.startsWith('data:'));
+      // Handle amenities (Backend dev Guideline: array[int])
+      if (amenities && amenities.length > 0) {
+        amenities.forEach(id => formData.append('amenities', id));
+      }
 
-        await Promise.all(newImages.map(async (imgUri) => {
-          const filename = `photo_${new Date().getTime()}.jpg`;
+      if (__DEV__) {
+        console.log("FormData being sent:");
+        // Note: FormData.entries() might not work in all RN versions, 
+        // but we can log the parts we know.
+        console.log("Title:", propertyName, "Price:", getRawPrice(), "Type:", propertyType);
+        if (isEditMode) console.log("Deleting Images:", deletedImageIds);
+      }
+
+      if (isEditMode) {
+        // Only upload NEW images
+        const newImages = images.filter(img => img.isNew);
+
+        await Promise.all(newImages.map(async (imgObj, idx) => {
+          const imgUri = imgObj.uri;
+          const filename = `photo_${new Date().getTime()}_${idx}.jpg`;
           const type = 'image/jpeg';
           if (Platform.OS === 'web') {
             const response = await fetch(imgUri);
@@ -135,10 +172,20 @@ export default function ListPropertyPage() {
             formData.append('uploaded_images', { uri: imgUri, name: filename, type: type });
           }
         }));
+
+        // Send IDs of images to delete
+        if (deletedImageIds.length > 0) {
+          // Backend expects a comma separated string or multiple fields? 
+          // Usually DRF handles multiple fields with same name or a list.
+          // Let's send as a JSON string if the backend supports it, or individual appends.
+          deletedImageIds.forEach(id => formData.append('delete_images', id));
+        }
+
         await updateProperty(propertyToEdit.id, formData);
       } else {
-        await Promise.all(images.map(async (imgUri) => {
-          const filename = `photo_${new Date().getTime()}.jpg`;
+        await Promise.all(images.map(async (imgObj, idx) => {
+          const imgUri = imgObj.uri;
+          const filename = `photo_${new Date().getTime()}_${idx}.jpg`;
           const type = 'image/jpeg';
           if (Platform.OS === 'web') {
             const response = await fetch(imgUri);
@@ -162,7 +209,7 @@ export default function ListPropertyPage() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}><Text style={styles.backText}>←</Text></TouchableOpacity>
         <Text style={styles.headerTitle}>{isEditMode ? 'Edit Property' : 'List Your Property'}</Text>
@@ -227,7 +274,7 @@ export default function ListPropertyPage() {
             <TouchableOpacity style={styles.addImageBtn} onPress={handleAddImage}><Text style={{ fontSize: 30, color: '#8890a6', marginTop: -2 }}>+</Text></TouchableOpacity>
             {images.map((img, index) => (
               <View key={index} style={styles.thumbnailContainer}>
-                <Image source={{ uri: img }} style={styles.thumbnail} />
+                <Image source={{ uri: img.uri }} style={styles.thumbnail} />
                 <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemoveImage(index)}><Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>✕</Text></TouchableOpacity>
               </View>
             ))}
@@ -252,13 +299,22 @@ export default function ListPropertyPage() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: Platform.OS === 'ios' ? 10 : 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0'
+  },
   backButton: { padding: 5 },
   backText: { fontSize: 24, color: '#1a1f36' },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#1a1f36' },

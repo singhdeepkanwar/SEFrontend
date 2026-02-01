@@ -5,9 +5,11 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet, Text, View, TouchableOpacity, FlatList, ImageBackground, Alert, ActivityIndicator, Platform
+  StyleSheet, Text, View, TouchableOpacity, FlatList, ImageBackground, Alert, ActivityIndicator, Platform,
+  SafeAreaView
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { getMyProperties, updatePropertyStatus, deleteProperty, MEDIA_BASE_URL } from '../services/api';
 
 
@@ -16,9 +18,11 @@ export default function ManagePropertiesPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    fetchMyProperties();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchMyProperties();
+    }, [])
+  );
 
   const fetchMyProperties = async () => {
     try {
@@ -76,8 +80,11 @@ export default function ManagePropertiesPage() {
 
   const getImageUrl = (img) => {
     if (!img) return 'https://via.placeholder.com/400';
-    if (typeof img === 'string') return img.startsWith('http') ? img : `${MEDIA_BASE_URL}${img}`;
-    return img.image ? (img.image.startsWith('http') ? img.image : `${MEDIA_BASE_URL}${img.image}`) : 'https://via.placeholder.com/400';
+    const path = typeof img === 'string' ? img : img.image;
+    if (!path) return 'https://via.placeholder.com/400';
+    if (path.startsWith('http')) return path;
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    return `${MEDIA_BASE_URL}${cleanPath}`;
   };
 
   const renderStatusPill = (status) => {
@@ -119,7 +126,7 @@ export default function ManagePropertiesPage() {
   );
 
   return (
-    <View style={manageStyles.container}>
+    <SafeAreaView style={manageStyles.container}>
       <View style={manageStyles.header}>
         <TouchableOpacity onPress={() => router.back()} style={manageStyles.backButton}><Text style={manageStyles.backText}>←</Text></TouchableOpacity>
         <Text style={manageStyles.headerTitle}>Manage My Properties</Text>
@@ -135,13 +142,22 @@ export default function ManagePropertiesPage() {
           ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 50, color: '#888' }}>No properties listed.</Text>}
         />
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
 const manageStyles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: Platform.OS === 'ios' ? 10 : 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0'
+  },
   backButton: { padding: 5 },
   backText: { fontSize: 24, color: '#1a1f36' },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#1a1f36' },

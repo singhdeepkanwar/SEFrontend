@@ -33,7 +33,9 @@ export default function SavedPropertiesPage() {
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return 'https://via.placeholder.com/400x200';
-    return imagePath.startsWith('http') ? imagePath : `${MEDIA_BASE_URL}${imagePath}`;
+    if (imagePath.startsWith('http')) return imagePath;
+    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `${MEDIA_BASE_URL}${cleanPath}`;
   };
 
   const handleUnsave = async (id) => {

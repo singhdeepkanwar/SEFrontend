@@ -13,7 +13,7 @@ const HOST = Platform.OS === 'android' ? '10.0.2.2' : '127.0.0.1';
 const DEV_URL = `https://backend.sangrurestate.com/api`;
 
 export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? PROD_URL : DEV_URL);
-export const MEDIA_BASE_URL = BASE_URL.replace('/api', '');
+export const MEDIA_BASE_URL = BASE_URL.replace('/api', '') + '/';
 let REFRESH = null
 // --- AXIOS INSTANCE (For simple JSON requests) ---
 
@@ -45,8 +45,8 @@ export const logout = async () => {
   const refresh = await AsyncStorage.getItem('refresh_token');
   return api.post('/auth/logout/', { refresh });
 };
-export const getMyProperties = () => api.get('/properties/my_properties/');
-export const getFavorites = () => api.get('/properties/favorites/');
+export const getMyProperties = () => api.get('/properties/my_properties/', { params: { _t: new Date().getTime() } });
+export const getFavorites = () => api.get('/properties/favorites/', { params: { _t: new Date().getTime() } });
 export const getInquiries = () => api.get('/inquiries/');
 
 // Delete a property
@@ -76,11 +76,13 @@ const uploadWithFetch = async (url, method, formData) => {
   const responseData = await response.json();
 
   if (!response.ok) {
+    console.error("Upload Error Data:", responseData);
     const error = new Error("Upload Failed");
     error.response = { data: responseData, status: response.status };
     throw error;
   }
 
+  if (__DEV__) console.log("Upload Success Response:", responseData);
   return responseData;
 };
 

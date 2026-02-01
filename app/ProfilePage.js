@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, Image, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, ScrollView, TextInput, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api'; // Assuming you have an api.js
@@ -82,102 +82,112 @@ export default function ProfilePage() {
         <Text style={styles.headerTitle}>Profile</Text>
         <View style={{ width: 30 }} />
       </View>
-
-      <View style={styles.profileHeader}>
-        <Image source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80' }} style={styles.avatar} />
-        {isEditing ? (
-          <TextInput
-            style={styles.nameInput}
-            value={formData.full_name}
-            onChangeText={(txt) => setFormData({ ...formData, full_name: txt })}
-            placeholder="Full Name"
-          />
-        ) : (
-          <Text style={styles.name}>{profile?.full_name || 'No Name Set'}</Text>
-        )}
-        <Text style={styles.email}>{profile?.email}</Text>
-        <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(!isEditing)}>
-          <Text style={styles.editBtnText}>{isEditing ? "Cancel" : "Edit Profile"}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.detailsContainer}>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Phone</Text>
-          <Text style={styles.detailValue}>{profile?.phone}</Text>
-        </View>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Email</Text>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+        <View style={styles.profileHeader}>
+          <Image source={{ uri: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80' }} style={styles.avatar} />
           {isEditing ? (
             <TextInput
-              style={styles.detailInput}
-              value={formData.email}
-              onChangeText={(txt) => setFormData({ ...formData, email: txt })}
-              placeholder="Email"
-              keyboardType="email-address"
+              style={styles.nameInput}
+              value={formData.full_name}
+              onChangeText={(txt) => setFormData({ ...formData, full_name: txt })}
+              placeholder="Full Name"
             />
           ) : (
-            <Text style={styles.detailValue}>{profile?.email || 'Not Set'}</Text>
+            <Text style={styles.name}>{profile?.full_name || 'No Name Set'}</Text>
           )}
-        </View>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>City</Text>
-          {isEditing ? (
-            <TextInput
-              style={styles.detailInput}
-              value={formData.city}
-              onChangeText={(txt) => setFormData({ ...formData, city: txt })}
-              placeholder="City"
-            />
-          ) : (
-            <Text style={styles.detailValue}>{profile?.city || 'Not Set'}</Text>
-          )}
-        </View>
-        <View style={styles.detailItem}>
-          <Text style={styles.detailLabel}>Address</Text>
-          {isEditing ? (
-            <TextInput
-              style={styles.detailInput}
-              value={formData.address}
-              onChangeText={(txt) => setFormData({ ...formData, address: txt })}
-              placeholder="Address"
-            />
-          ) : (
-            <Text style={styles.detailValue}>{profile?.address || 'Not Set'}</Text>
-          )}
-        </View>
-        {isEditing && (
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-            <Text style={styles.saveBtnText}>Save Changes</Text>
+          <Text style={styles.email}>{profile?.email}</Text>
+          <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(!isEditing)}>
+            <Text style={styles.editBtnText}>{isEditing ? "Cancel" : "Edit Profile"}</Text>
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
 
-      <View style={styles.menu}>
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/SavedPropertiesPage')}>
-          <Text style={styles.menuText}>❤️ Saved Properties</Text>
-          <Text style={styles.arrow}>›</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/InquiredPropertiesPage')}>
-          <Text style={styles.menuText}>💬 Inquired Properties</Text>
-          <Text style={styles.arrow}>›</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
-          <Text style={styles.menuText}>🚪 Logout</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount}>
-          <Text style={[styles.menuText, { color: 'red' }]}>🗑 Delete Account</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Phone</Text>
+            <Text style={styles.detailValue}>{profile?.phone}</Text>
+          </View>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Email</Text>
+            {isEditing ? (
+              <TextInput
+                style={styles.detailInput}
+                value={formData.email}
+                onChangeText={(txt) => setFormData({ ...formData, email: txt })}
+                placeholder="Email"
+                keyboardType="email-address"
+              />
+            ) : (
+              <Text style={styles.detailValue}>{profile?.email || 'Not Set'}</Text>
+            )}
+          </View>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>City</Text>
+            {isEditing ? (
+              <TextInput
+                style={styles.detailInput}
+                value={formData.city}
+                onChangeText={(txt) => setFormData({ ...formData, city: txt })}
+                placeholder="City"
+              />
+            ) : (
+              <Text style={styles.detailValue}>{profile?.city || 'Not Set'}</Text>
+            )}
+          </View>
+          <View style={styles.detailItem}>
+            <Text style={styles.detailLabel}>Address</Text>
+            {isEditing ? (
+              <TextInput
+                style={styles.detailInput}
+                value={formData.address}
+                onChangeText={(txt) => setFormData({ ...formData, address: txt })}
+                placeholder="Address"
+              />
+            ) : (
+              <Text style={styles.detailValue}>{profile?.address || 'Not Set'}</Text>
+            )}
+          </View>
+          {isEditing && (
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+              <Text style={styles.saveBtnText}>Save Changes</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.menu}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/SavedPropertiesPage')}>
+            <Text style={styles.menuText}>❤️ Saved Properties</Text>
+            <Text style={styles.arrow}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/InquiredPropertiesPage')}>
+            <Text style={styles.menuText}>💬 Inquired Properties</Text>
+            <Text style={styles.arrow}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={handleLogout}>
+            <Text style={styles.menuText}>🚪 Logout</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount}>
+            <Text style={[styles.menuText, { color: 'red' }]}>🗑 Delete Account</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView >
+    </SafeAreaView >
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8F9FB' },
-  header: { flexDirection: 'row', padding: 20, alignItems: 'center', justifyContent: 'space-between' },
-  backBtn: { fontSize: 24 },
-  headerTitle: { fontSize: 18, fontWeight: '700' },
+  header: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff'
+  },
+  backBtn: { fontSize: 24, color: '#1a1f36' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: '#1a1f36' },
   profileHeader: { alignItems: 'center', marginVertical: 20 },
   avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 10 },
   name: { fontSize: 22, fontWeight: '700' },

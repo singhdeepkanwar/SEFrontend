@@ -11,6 +11,7 @@ import {
   Dimensions, Share, Alert, Linking, ActivityIndicator, Platform
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import Constants from 'expo-constants';
 import { getProperties, toggleFavorite, inquireProperty, MEDIA_BASE_URL } from '../services/api';
 
 const { width } = Dimensions.get('window');
@@ -47,7 +48,9 @@ export default function PropertyDetailsPage() {
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return 'https://images.unsplash.com/photo-1587745890135-20db8c79b027';
-    return imagePath.startsWith('http') ? imagePath : `${MEDIA_BASE_URL}${imagePath}`;
+    if (imagePath.startsWith('http')) return imagePath;
+    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `${MEDIA_BASE_URL}${cleanPath}`;
   };
 
   const handleShare = async () => {
@@ -169,7 +172,15 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   imageContainer: { height: 400, width: '100%', position: 'relative' },
   image: { width: width, height: 400 },
-  topButtonsContainer: { position: 'absolute', top: 50, left: 20, right: 20, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 },
+  topButtonsContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? Constants.statusBarHeight + 10 : 20,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 10
+  },
   topRightButtons: { flexDirection: 'row' },
   // Darker translucent background for better visibility
   circleButton: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
@@ -188,7 +199,7 @@ const styles = StyleSheet.create({
   specBlockValue: { fontSize: 16, fontWeight: '700', color: '#1a1f36', textAlign: 'center' },
   specBlockLabel: { fontSize: 12, color: '#8890a6', marginTop: 2 },
   mapPlaceholder: { height: 180, backgroundColor: '#eee', borderRadius: 20, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 24, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
+  footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 24, paddingBottom: Platform.OS === 'ios' ? 34 : 24, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
   inquireButton: { backgroundColor: '#1a1f36', height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', shadowColor: '#1a1f36', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
   inquireButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

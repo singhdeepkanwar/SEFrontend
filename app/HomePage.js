@@ -10,9 +10,9 @@ import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, Text, View, Image, TouchableOpacity, SafeAreaView,
   StatusBar, FlatList, Modal, TextInput, ScrollView, ActivityIndicator,
-  ImageBackground, Platform, Alert
+  ImageBackground, Platform, Alert, TouchableWithoutFeedback
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { getProperties, toggleFavorite, MEDIA_BASE_URL } from '../services/api';
 
 
@@ -29,9 +29,11 @@ export default function HomePage() {
   const [propType, setPropType] = useState('');
   const [priceRange, setPriceRange] = useState(null);
 
-  useEffect(() => {
-    fetchLiveProperties();
-  }, [activeFilter, propType, priceRange, location]); // Auto-refresh when filters apply
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchLiveProperties();
+    }, [activeFilter, propType, priceRange, location])
+  );
 
   const fetchLiveProperties = async () => {
     if (loading) return;
@@ -48,6 +50,8 @@ export default function HomePage() {
       if (priceRange === '< 50 Lac') params.price__lte = 5000000;
       else if (priceRange === '50 Lac - 1 Cr') { params.price__gte = 5000000; params.price__lte = 10000000; }
       else if (priceRange === '1 - 3 Cr') { params.price__gte = 10000000; params.price__lte = 30000000; }
+
+      params._t = new Date().getTime(); // Cache buster
 
       const response = await getProperties(params);
       const fetchedData = response.data.results || response.data;
@@ -80,7 +84,8 @@ export default function HomePage() {
   const getImageUrl = (imagePath) => {
     if (!imagePath) return 'https://images.unsplash.com/photo-1587745890135-20db8c79b027';
     if (imagePath.startsWith('http')) return imagePath;
-    return `${MEDIA_BASE_URL}${imagePath}`;
+    const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
+    return `${MEDIA_BASE_URL}${cleanPath}`;
   };
 
   const renderHeader = () => (
@@ -196,44 +201,49 @@ export default function HomePage() {
       </SafeAreaView>
 
       <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>All Filters</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}><Text style={styles.closeBtn}>✕</Text></TouchableOpacity>
-            </View>
-            <Text style={styles.inputLabel}>Location</Text>
-            <TextInput style={styles.textInput} placeholder="Enter City, Locality" value={location} onChangeText={setLocation} />
-            <Text style={styles.inputLabel}>Property Type</Text>
-            <View style={styles.pillRow}>
-              {/* Added 'All Properties' */}
-              <TouchableOpacity key="all" style={[styles.pill, propType === '' && styles.pillActive]} onPress={() => setPropType('')}>
-                <Text style={[styles.pillText, propType === '' && styles.pillTextActive]}>All Properties</Text>
-              </TouchableOpacity>
-              {['House', 'Plot', 'Commercial'].map((t) => (
-                <TouchableOpacity key={t} style={[styles.pill, propType === t.toUpperCase() && styles.pillActive]} onPress={() => setPropType(t.toUpperCase())}>
-                  <Text style={[styles.pillText, propType === t.toUpperCase() && styles.pillTextActive]}>{t}</Text>
+        <TouchableOpacity
+          style={styles.modalContainer}
+          activeOpacity={1}
+          onPress={() => setModalVisible(false)}
+        >
+          <TouchableWithoutFeedback>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>All Filters</Text>
+                <TouchableOpacity onPress={() => setModalVisible(false)}><Text style={styles.closeBtn}>✕</Text></TouchableOpacity>
+              </View>
+              <Text style={styles.inputLabel}>Location</Text>
+              <TextInput style={styles.textInput} placeholder="Enter City, Locality" value={location} onChangeText={setLocation} />
+              <Text style={styles.inputLabel}>Property Type</Text>
+              <View style={styles.pillRow}>
+                <TouchableOpacity key="all" style={[styles.pill, propType === '' && styles.pillActive]} onPress={() => setPropType('')}>
+                  <Text style={[styles.pillText, propType === '' && styles.pillTextActive]}>All Properties</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={styles.inputLabel}>Price Range</Text>
-            <View style={styles.pillRow}>
-              {['< 50 Lac', '50 Lac - 1 Cr', '1 - 3 Cr', '3 - 5 Cr', '> 5 Cr'].map((p) => (
-                <TouchableOpacity key={p} style={[styles.pill, priceRange === p && styles.pillActive]} onPress={() => setPriceRange(p)}>
-                  <Text style={[styles.pillText, priceRange === p && styles.pillTextActive]}>{p}</Text>
+                {['House', 'Plot', 'Commercial'].map((t) => (
+                  <TouchableOpacity key={t} style={[styles.pill, propType === t.toUpperCase() && styles.pillActive]} onPress={() => setPropType(t.toUpperCase())}>
+                    <Text style={[styles.pillText, propType === t.toUpperCase() && styles.pillTextActive]}>{t}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.inputLabel}>Price Range</Text>
+              <View style={styles.pillRow}>
+                {['< 50 Lac', '50 Lac - 1 Cr', '1 - 3 Cr', '3 - 5 Cr', '> 5 Cr'].map((p) => (
+                  <TouchableOpacity key={p} style={[styles.pill, priceRange === p && styles.pillActive]} onPress={() => setPriceRange(p)}>
+                    <Text style={[styles.pillText, priceRange === p && styles.pillTextActive]}>{p}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
+                <TouchableOpacity style={[styles.applyBtn, { backgroundColor: '#ccc', flex: 1 }]} onPress={clearFilters}>
+                  <Text style={styles.applyBtnText}>Clear</Text>
                 </TouchableOpacity>
-              ))}
+                <TouchableOpacity style={[styles.applyBtn, { flex: 2 }]} onPress={() => setModalVisible(false)}>
+                  <Text style={styles.applyBtnText}>Apply Filters</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-            <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
-              <TouchableOpacity style={[styles.applyBtn, { backgroundColor: '#ccc', flex: 1 }]} onPress={clearFilters}>
-                <Text style={styles.applyBtnText}>Clear</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.applyBtn, { flex: 2 }]} onPress={() => setModalVisible(false)}>
-                <Text style={styles.applyBtnText}>Apply Filters</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
+          </TouchableWithoutFeedback>
+        </TouchableOpacity>
       </Modal>
     </View>
   );
