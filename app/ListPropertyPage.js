@@ -130,31 +130,83 @@ export default function ListPropertyPage() {
       const formData = new FormData();
       const unitMap = { "Gaj": "SQYD", "Sq. Yard": "SQYD", "Sq. Feet": "SQFT", "Marla": "MARLA", "Kanal": "KANAL", "Acre": "ACRE", "Sq. Meter": "SQMTR" };
 
-      formData.append('title', propertyName);
-      formData.append('price', getRawPrice());
-      formData.append('description', description);
-      formData.append('address', location);
-      formData.append('city', 'Sangrur');
-      formData.append('listing_type', listingType === 'sell' ? 'SALE' : 'RENT');
-      formData.append('property_type', propertyType.toUpperCase());
-      formData.append('area', area);
       const unit = unitMap[areaUnit] || (Object.values(unitMap).includes(areaUnit) ? areaUnit : 'SQFT');
-      formData.append('unit', unit);
+
+      const changedKeys = [];
+      const appendIfChanged = (key, value, originalValue, isNumber = false) => {
+        let hasChanged = false;
+        if (!isEditMode) hasChanged = true;
+        else if (isNumber) {
+          hasChanged = parseFloat(value) !== parseFloat(originalValue);
+        } else {
+          hasChanged = String(value) !== String(originalValue || '');
+        }
+
+        if (hasChanged) {
+          formData.append(key, value);
+          changedKeys.push(key);
+        }
+      };
+
+      appendIfChanged('title', propertyName, propertyToEdit?.title);
+      // Compare price as numbers for safety
+      if (!isEditMode || getRawPrice() !== parseFloat(propertyToEdit?.price)) {
+        formData.append('price', getRawPrice());
+        changedKeys.push('price');
+      }
+      appendIfChanged('description', description, propertyToEdit?.description);
+      appendIfChanged('address', location, propertyToEdit?.address);
+      appendIfChanged('city', 'Sangrur', propertyToEdit?.city);
+
+      const backendListingType = listingType === 'sell' ? 'SALE' : 'RENT';
+      appendIfChanged('listing_type', backendListingType, propertyToEdit?.listing_type);
+
+      const backendPropType = propertyType.toUpperCase();
+      appendIfChanged('property_type', backendPropType, propertyToEdit?.property_type);
+
+      // Use numeric comparison for Area
+      appendIfChanged('area', area, propertyToEdit?.area, true);
+      appendIfChanged('unit', unit, propertyToEdit?.unit);
+
       if (propertyType === 'House') {
-        formData.append('bedrooms', bedrooms);
-        formData.append('bathrooms', bathrooms);
+        appendIfChanged('bedrooms', bedrooms, propertyToEdit?.bedrooms);
+        appendIfChanged('bathrooms', bathrooms, propertyToEdit?.bathrooms);
       }
 
-      // Handle amenities (Backend dev Guideline: array[int])
-      // Handle amenities (Backend dev Guideline: array[int])
-      if (amenities && amenities.length > 0) {
-        amenities.forEach(id => formData.append('amenities', String(id)));
+      // Handle amenities: Check if changed.
+      const oldAmenities = (propertyToEdit?.amenities || []).map(String).sort().join(',');
+      const newAmenities = amenities.map(String).sort().join(',');
+
+      if (!isEditMode || oldAmenities !== newAmenities) {
+        if (amenities && amenities.length > 0) {
+          amenities.forEach(id => {
+            formData.append('amenities', String(id));
+          });
+          changedKeys.push('amenities');
+        } else if (isEditMode) {
+          // If amenities cleared in edit mode, we might need to send something to clear it?
+          // DRF usually requires an empty list or special handling. 
+          // For now, if length is 0 and it changed, we do nothing (or should we send empty?)
+          // Assuming default clear behavior.
+        }
+      }
+
+      const newImages = images.filter(img => img.isNew);
+      const hasImagesChange = newImages.length > 0 || deletedImageIds.length > 0;
+
+      if (isEditMode && changedKeys.length === 0 && !hasImagesChange) {
+        Alert.alert("No Changes", "You haven't made any changes to the property.");
+        setLoading(false);
+        return;
       }
 
       if (__DEV__) {
-        console.log("FormData being sent:");
-        console.log("Title:", propertyName, "Price:", getRawPrice(), "Unit:", unit, "Area:", area);
-        if (isEditMode) console.log("Deleting Images:", deletedImageIds);
+        console.log("------------------------------------------------");
+        console.log("OPTIMIZED REQUEST REPORT:");
+        console.log(`Sending ONLY these fields: ${JSON.stringify(changedKeys)}`);
+        if (newImages.length > 0) console.log(`Adding ${newImages.length} new images`);
+        if (deletedImageIds.length > 0) console.log(`Deleting images: ${deletedImageIds}`);
+        console.log("------------------------------------------------");
       }
 
       if (isEditMode) {
