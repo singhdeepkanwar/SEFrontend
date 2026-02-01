@@ -98,30 +98,46 @@ export const updateProperty = async (id, formData) => {
   return uploadWithFetch(url, 'PATCH', formData);
 };
 api.interceptors.response.use(
-  (response) => {
-    // If the response is good, just pass it through
-    return response;
-  },
+  (response) => response,
   async (error) => {
-    // Check if the error is a 401 Unauthorized
-    if (error.response && error.response.status === 401) {
-      console.log("Token expired or invalid. Redirecting to login...");
+    const originalRequest = error.config;
 
-      // 1. Clear the invalid tokens from storage
-      await AsyncStorage.multiRemove(['access_token', 'refresh_token']);
+    // Check if the error is a 401 Unauthorized and we haven't already retried this request
+    if (error.response && error.response.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
 
-      // 2. Redirect user to the Login/Root screen
-      // 'replace' prevents them from hitting the back button to return
-      if (router.canGoBack()) {
-        router.dismissAll(); // Clear stack if possible
+      try {
+        const refreshToken = await AsyncStorage.getItem('refresh_token');
+        if (!refreshToken) throw new Error("No refresh token");
+
+        // Attempt to refresh the access token
+        console.log("Attempting to refresh access token...");
+        const response = await axios.post(`${BASE_URL}/auth/token/refresh/`, { refresh: refreshToken });
+
+        if (response.data.access) {
+          const newAccessToken = response.data.access;
+          await AsyncStorage.setItem('access_token', newAccessToken);
+
+          // Update the original request's authorization header and retry it
+          originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+          return api(originalRequest);
+        }
+      } catch (refreshError) {
+        console.log("Token refresh failed. Redirecting to login...", refreshError);
+
+        // If refresh fails, clear tokens and redirect to login
+        await AsyncStorage.multiRemove(['access_token', 'refresh_token']);
+
+        if (router.canGoBack()) {
+          router.dismissAll();
+        }
+        router.replace('/');
+
+        Alert.alert("Session Expired", "Please log in again.");
+        return Promise.reject(refreshError);
       }
-      router.replace('/');
-
-      // 3. Optional: Show a user-friendly alert
-      Alert.alert("Session Expired", "Your session has expired. Please log in again.");
     }
 
-    // Return the error so the specific page can handle it too if needed (e.g. stop loading spinners)
     return Promise.reject(error);
   }
 );

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet, Text, View, FlatList, TouchableOpacity,
-  Image, Alert, SafeAreaView, ActivityIndicator, Dimensions
+  Alert, SafeAreaView, ActivityIndicator, Dimensions
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getFavorites, toggleFavorite, MEDIA_BASE_URL } from '../services/api';
 
@@ -32,7 +33,7 @@ export default function SavedPropertiesPage() {
   };
 
   const getImageUrl = (imagePath) => {
-    if (!imagePath) return 'https://via.placeholder.com/400x200';
+    if (!imagePath) return require('../assets/images/property_placeholder.jpg');
     if (imagePath.startsWith('http')) return imagePath;
     const cleanPath = imagePath.startsWith('/') ? imagePath.slice(1) : imagePath;
     return `${MEDIA_BASE_URL}${cleanPath}`;
@@ -78,7 +79,7 @@ export default function SavedPropertiesPage() {
           ListEmptyComponent={renderEmpty}
           renderItem={({ item }) => (
             <TouchableOpacity style={styles.card} onPress={() => router.push({ pathname: '/PropertyDetailsPage', params: { id: item.id } })}>
-              <Image source={{ uri: getImageUrl(item.images?.[0]?.image) }} style={styles.cardImage} />
+              <Image source={{ uri: getImageUrl(item.images?.[0]?.image) }} style={styles.cardImage} contentFit="cover" transition={300} />
               <View style={styles.cardContent}>
                 <View style={styles.cardMainInfo}>
                   <Text style={styles.propTitle} numberOfLines={1}>{item.title}</Text>

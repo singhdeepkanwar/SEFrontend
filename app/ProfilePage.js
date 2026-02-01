@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, ScrollView, TextInput, Platform } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, ScrollView, TextInput, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../services/api'; // Assuming you have an api.js
@@ -84,7 +85,7 @@ export default function ProfilePage() {
       </View>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
         <View style={styles.profileHeader}>
-          <Image source={require('../assets/images/cool_avatar.png')} style={styles.avatar} />
+          <Image source={require('../assets/images/cool_avatar.png')} style={styles.avatar} contentFit="cover" transition={200} />
           {isEditing ? (
             <TextInput
               style={styles.nameInput}

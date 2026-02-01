@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "MyRealEstateApp",
-    "slug": "MyRealEstateApp",
+    "name": "Sangrur Estate",
+    "slug": "sangrur-estate",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "myrealestateapp",
+    "scheme": "sangrurestate",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.MyRealEstateApp"
+      "bundleIdentifier": "com.sangrurestate.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,6 +19,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "package": "com.sangrurestate.app",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },

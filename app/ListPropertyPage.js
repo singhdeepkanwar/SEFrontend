@@ -6,9 +6,10 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert, Image, ActivityIndicator, Platform,
-  SafeAreaView
+  StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, Platform,
+  SafeAreaView, Modal, FlatList, Keyboard, KeyboardAvoidingView, TouchableWithoutFeedback
 } from 'react-native';
+import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import { createProperty, updateProperty, MEDIA_BASE_URL } from '../services/api';
@@ -22,6 +23,10 @@ export default function ListPropertyPage() {
   const propertyToEdit = propertyData ? JSON.parse(propertyData) : null;
   const isEditMode = !!propertyToEdit;
   const [loading, setLoading] = useState(false);
+
+  // --- PICKER STATE ---
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [pickerType, setPickerType] = useState(null); // 'price' or 'area'
 
   // --- FORM STATE ---
   const [listingType, setListingType] = useState(propertyToEdit?.listing_type === 'RENT' ? 'rent' : 'sell');
@@ -68,7 +73,7 @@ export default function ListPropertyPage() {
   const [images, setImages] = useState(initialImages); // Array of { id, uri, isNew }
   const [deletedImageIds, setDeletedImageIds] = useState([]); // Array of IDs to delete on backend
 
-  const areaUnits = ["Gaj", "Sq. Yard", "Marla", "Kanal", "Acre", "Sq. Feet"];
+  const areaUnits = ["Gaj", "Sq. Yard", "Marla", "Kanal", "Acre", "Sq. Feet", "Sq. Meter"];
   const sellPriceUnits = ["Lakh", "Crore"];
   const rentPriceUnits = ["Thousand", "Lakh"];
 
@@ -99,7 +104,7 @@ export default function ListPropertyPage() {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.7,
@@ -276,7 +281,7 @@ export default function ListPropertyPage() {
         </View>
 
         <Text style={styles.label}>Property Name</Text>
-        <TextInput style={styles.input} placeholder="e.g. Sunny Villa" value={propertyName} onChangeText={setPropertyName} />
+        <TextInput style={styles.input} placeholder="e.g. Plot for Sale, PG for Rent, Shop for Rent" placeholderTextColor="#8890a6" value={propertyName} onChangeText={setPropertyName} />
 
         <Text style={styles.label}>Property Type</Text>
         <View style={styles.chipRow}>
@@ -286,40 +291,71 @@ export default function ListPropertyPage() {
         </View>
 
         <Text style={styles.label}>Price</Text>
-        <View style={styles.rowInputContainer}>
-          <TextInput style={[styles.input, { flex: 2, marginRight: 10 }]} placeholder="Amount" keyboardType="numeric" value={price} onChangeText={setPrice} />
-          <View style={styles.unitSelector}>
-            {(listingType === 'sell' ? sellPriceUnits : rentPriceUnits).map(u => (
-              <TouchableOpacity key={u} style={[styles.unitBtn, priceUnit === u && styles.unitBtnActive]} onPress={() => setPriceUnit(u)}><Text style={[styles.unitText, priceUnit === u && styles.unitTextActive]}>{u}</Text></TouchableOpacity>
-            ))}
-          </View>
+        <View style={styles.inputContainerWithPicker}>
+          <TextInput
+            style={[styles.flexInput, { borderRightWidth: 1, borderRightColor: '#eee' }]}
+            placeholder="Amount"
+            placeholderTextColor="#8890a6"
+            keyboardType="numeric"
+            value={price}
+            onChangeText={setPrice}
+          />
+          <TouchableOpacity
+            style={styles.pickerTrigger}
+            onPress={() => { setPickerType('price'); setPickerVisible(true); }}
+          >
+            <Text style={styles.pickerTriggerText}>{priceUnit} ▾</Text>
+          </TouchableOpacity>
         </View>
+        {price ? (
+          <Text style={styles.pricePreview}>
+            ₹ {getRawPrice().toLocaleString('en-IN')}
+          </Text>
+        ) : null}
 
         {propertyType === 'House' && (
           <View style={styles.rowInputContainer}>
-            <View style={{ flex: 1, marginRight: 10 }}><Text style={styles.label}>Bedrooms</Text><TextInput style={styles.input} placeholder="0" keyboardType="numeric" value={bedrooms} onChangeText={setBedrooms} /></View>
-            <View style={{ flex: 1 }}><Text style={styles.label}>Bathrooms</Text><TextInput style={styles.input} placeholder="0" keyboardType="numeric" value={bathrooms} onChangeText={setBathrooms} /></View>
+            <View style={{ flex: 1, marginRight: 10 }}><Text style={styles.label}>Bedrooms</Text><TextInput style={styles.input} placeholder="0" placeholderTextColor="#8890a6" keyboardType="numeric" value={bedrooms} onChangeText={setBedrooms} /></View>
+            <View style={{ flex: 1 }}><Text style={styles.label}>Bathrooms</Text><TextInput style={styles.input} placeholder="0" placeholderTextColor="#8890a6" keyboardType="numeric" value={bathrooms} onChangeText={setBathrooms} /></View>
           </View>
         )}
 
         <Text style={styles.label}>Area Size</Text>
-        <View style={styles.rowInputContainer}>
-          <TextInput style={[styles.input, { flex: 1.5, marginRight: 10 }]} placeholder="Size" keyboardType="numeric" value={area} onChangeText={setArea} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flex: 2 }}>
-            {areaUnits.map(u => (
-              <TouchableOpacity key={u} style={[styles.unitBtn, areaUnit === u && styles.unitBtnActive]} onPress={() => setAreaUnit(u)}><Text style={[styles.unitText, areaUnit === u && styles.unitTextActive]}>{u.split('/')[0]}</Text></TouchableOpacity>
-            ))}
-          </ScrollView>
+        <View style={styles.inputContainerWithPicker}>
+          <TextInput
+            style={[styles.flexInput, { borderRightWidth: 1, borderRightColor: '#eee' }]}
+            placeholder="Size"
+            placeholderTextColor="#8890a6"
+            keyboardType="numeric"
+            value={area}
+            onChangeText={setArea}
+          />
+          <TouchableOpacity
+            style={styles.pickerTrigger}
+            onPress={() => { setPickerType('area'); setPickerVisible(true); }}
+          >
+            <Text style={styles.pickerTriggerText}>{areaUnit} ▾</Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.label}>Location</Text>
         <View style={styles.locationContainer}>
-          <TextInput style={[styles.input, { borderWidth: 0, marginBottom: 0, flex: 1 }]} placeholder="Enter Address" value={location} onChangeText={setLocation} />
+          <TextInput style={[styles.input, { borderWidth: 0, marginBottom: 0, flex: 1 }]} placeholder="Enter Address" placeholderTextColor="#8890a6" value={location} onChangeText={setLocation} />
           <TouchableOpacity style={styles.pinButton} onPress={() => Alert.alert("Map Feature", "Map Pin Drop here.")}><Text style={{ fontSize: 20 }}>📍</Text></TouchableOpacity>
         </View>
 
         <Text style={styles.label}>Description</Text>
-        <TextInput style={[styles.input, { height: 100, paddingTop: 12 }]} placeholder="Describe your property..." multiline={true} value={description} onChangeText={setDescription} />
+        <TextInput
+          style={[styles.input, { height: 120, paddingTop: 12 }]}
+          placeholder="Describe your property..."
+          placeholderTextColor="#8890a6"
+          multiline={true}
+          value={description}
+          onChangeText={setDescription}
+          returnKeyType="done"
+          blurOnSubmit={true}
+          onSubmitEditing={() => Keyboard.dismiss()}
+        />
 
         <Text style={styles.label}>Property Images</Text>
         <View style={{ height: 100, marginBottom: 20 }}>
@@ -327,7 +363,7 @@ export default function ListPropertyPage() {
             <TouchableOpacity style={styles.addImageBtn} onPress={handleAddImage}><Text style={{ fontSize: 30, color: '#8890a6', marginTop: -2 }}>+</Text></TouchableOpacity>
             {images.map((img, index) => (
               <View key={index} style={styles.thumbnailContainer}>
-                <Image source={{ uri: img.uri }} style={styles.thumbnail} />
+                <Image source={{ uri: img.uri }} style={styles.thumbnail} contentFit="cover" transition={200} />
                 <TouchableOpacity style={styles.removeBtn} onPress={() => handleRemoveImage(index)}><Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>✕</Text></TouchableOpacity>
               </View>
             ))}
@@ -352,7 +388,32 @@ export default function ListPropertyPage() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+
+      {/* REUSABLE PICKER MODAL */}
+      <Modal visible={pickerVisible} transparent animationType="fade">
+        <TouchableOpacity style={styles.pickerOverlay} activeOpacity={1} onPress={() => setPickerVisible(false)}>
+          <View style={styles.pickerContent}>
+            <Text style={styles.pickerTitleSelect}>Select {pickerType === 'price' ? 'Unit' : 'Area Unit'}</Text>
+            {(pickerType === 'price' ? (listingType === 'sell' ? sellPriceUnits : rentPriceUnits) : areaUnits).map((u) => (
+              <TouchableOpacity
+                key={u}
+                style={styles.pickerItem}
+                onPress={() => {
+                  if (pickerType === 'price') setPriceUnit(u);
+                  else setAreaUnit(u);
+                  setPickerVisible(false);
+                }}
+              >
+                <Text style={styles.pickerItemText}>{u}</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity style={styles.pickerCancel} onPress={() => setPickerVisible(false)}>
+              <Text style={styles.pickerCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </SafeAreaView >
   );
 }
 
@@ -377,8 +438,8 @@ const styles = StyleSheet.create({
   toggleActive: { backgroundColor: '#fff', shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
   toggleText: { fontWeight: '600', color: '#8890a6' },
   toggleTextActive: { color: '#1a1f36' },
-  label: { fontSize: 14, fontWeight: '600', color: '#5e6c84', marginBottom: 8, marginTop: 10 },
-  input: { backgroundColor: '#F7F8FA', borderRadius: 12, paddingHorizontal: 16, height: 50, fontSize: 16, color: '#1a1f36', marginBottom: 10 },
+  label: { fontSize: 15, fontWeight: '700', color: '#1a1f36', marginBottom: 8, marginTop: 10 },
+  input: { backgroundColor: '#F7F8FA', borderRadius: 12, paddingHorizontal: 16, height: 50, fontSize: 17, color: '#1a1f36', marginBottom: 10 },
   chipRow: { flexDirection: 'row', marginBottom: 10 },
   chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: '#eee', marginRight: 10 },
   chipActive: { backgroundColor: '#1a1f36', borderColor: '#1a1f36' },
@@ -398,4 +459,96 @@ const styles = StyleSheet.create({
   removeBtn: { position: 'absolute', top: -5, right: -5, backgroundColor: 'red', width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   postButton: { backgroundColor: '#1a1f36', height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 30, marginBottom: 20 },
   postButtonText: { color: '#fff', fontSize: 18, fontWeight: '700' },
+
+  // --- NEW STYLES FOR DROPDOWN & KEYBOARD ---
+  inputContainerWithPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F7F8FA',
+    borderRadius: 12,
+    height: 50,
+    marginBottom: 10,
+    overflow: 'hidden'
+  },
+  flexInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 16,
+    fontSize: 17,
+    color: '#1a1f36'
+  },
+  pickerTrigger: {
+    paddingHorizontal: 15,
+    height: '100%',
+    justifyContent: 'center',
+    backgroundColor: '#f0f0f0'
+  },
+  pickerTriggerText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1a1f36'
+  },
+  dismissKeyboardButton: {
+    position: 'absolute',
+    right: 10,
+    bottom: 20,
+    backgroundColor: 'rgba(26, 31, 54, 0.8)',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8
+  },
+  dismissKeyboardText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600'
+  },
+
+  // --- PICKER MODAL STYLES ---
+  pickerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    padding: 20
+  },
+  pickerContent: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    padding: 20,
+    elevation: 5
+  },
+  pickerTitleSelect: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1a1f36',
+    marginBottom: 20,
+    textAlign: 'center'
+  },
+  pickerItem: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0'
+  },
+  pickerItemText: {
+    fontSize: 16,
+    color: '#1a1f36',
+    textAlign: 'center'
+  },
+  pickerCancel: {
+    marginTop: 15,
+    paddingVertical: 10
+  },
+  pickerCancelText: {
+    fontSize: 16,
+    color: 'red',
+    textAlign: 'center',
+    fontWeight: '600'
+  },
+  pricePreview: {
+    fontSize: 15,
+    color: '#2B8344',
+    fontWeight: '700',
+    marginTop: -5,
+    marginBottom: 10,
+    marginLeft: 5
+  }
 });
