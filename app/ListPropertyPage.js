@@ -48,6 +48,7 @@ export default function ListPropertyPage() {
   const [bathrooms, setBathrooms] = useState(propertyToEdit?.bathrooms ? String(propertyToEdit.bathrooms) : '');
 
   const reverseUnitMap = { "SQYD": "Gaj", "SQFT": "Sq. Feet", "MARLA": "Marla", "KANAL": "Kanal", "ACRE": "Acre", "SQMTR": "Sq. Meter" };
+  const [area, setArea] = useState(propertyToEdit?.area ? String(propertyToEdit.area) : '');
   const [areaUnit, setAreaUnit] = useState(reverseUnitMap[propertyToEdit?.unit] || propertyToEdit?.unit || 'Gaj');
 
   const [location, setLocation] = useState(propertyToEdit?.address || 'Sangrur');
@@ -145,8 +146,9 @@ export default function ListPropertyPage() {
       }
 
       // Handle amenities (Backend dev Guideline: array[int])
+      // Handle amenities (Backend dev Guideline: array[int])
       if (amenities && amenities.length > 0) {
-        amenities.forEach(id => formData.append('amenities', id));
+        amenities.forEach(id => formData.append('amenities', String(id)));
       }
 
       if (__DEV__) {
@@ -174,10 +176,10 @@ export default function ListPropertyPage() {
 
         // Send IDs of images to delete
         if (deletedImageIds.length > 0) {
-          // Backend expects a comma separated string or multiple fields? 
-          // Usually DRF handles multiple fields with same name or a list.
-          // Let's send as a JSON string if the backend supports it, or individual appends.
-          deletedImageIds.forEach(id => formData.append('delete_images', id));
+          // Try sending as a comma-separated string (common fix for RN FormData issues)
+          // Backend Spec says int[], but multipart lists can be tricky.
+          // If this fails, next step is delete_images[] key.
+          formData.append('delete_images', deletedImageIds.join(','));
         }
 
         await updateProperty(propertyToEdit.id, formData);
