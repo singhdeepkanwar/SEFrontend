@@ -12,10 +12,10 @@ import {
   Animated
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import { getProperties, toggleFavorite, inquireProperty, getInquiries, MEDIA_BASE_URL } from '../services/api';
+import { getProperties, toggleFavorite, inquireProperty, getInquiries, getAmenities, MEDIA_BASE_URL } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -31,6 +31,7 @@ export default function PropertyDetailsPage() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [isModalVisible, setIsModalVisible] = useState(false);
+  const [allAmenities, setAllAmenities] = useState([]);
 
   const mainScrollRef = useRef(null);
   const modalScrollRef = useRef(null);
@@ -67,9 +68,10 @@ export default function PropertyDetailsPage() {
   const fetchPropertyDetails = async () => {
     try {
       // Fetch both property info and inquiry status concurrently
-      const [propResponse, inquiriesRes] = await Promise.all([
+      const [propResponse, inquiriesRes, amenitiesRes] = await Promise.all([
         getProperties({ id: id }),
-        getInquiries()
+        getInquiries(),
+        getAmenities()
       ]);
 
       let data = propResponse.data;
@@ -78,6 +80,7 @@ export default function PropertyDetailsPage() {
 
       setProperty(data);
       setIsSaved(!!data.is_favorite);
+      setAllAmenities(amenitiesRes.data || []);
 
       const alreadyInquired = (inquiriesRes.data || []).some(inq =>
         (inq.property?.id || inq.property) == id
@@ -179,18 +182,23 @@ export default function PropertyDetailsPage() {
     </View>
   );
 
-  if (loading || !property) return <View style={[styles.container, { justifyContent: 'center' }]}><ActivityIndicator size="large" color="#1a1f36" /></View>;
+  if (loading || !property) return <View style={[styles.container, { justifyContent: 'center' }]}><ActivityIndicator size="large" color="#059669" /></View>;
 
   return (
     <>
       <Animated.View style={[styles.stickyHeader, { opacity: headerOpacity, transform: [{ translateY: headerTranslate }] }]}>
         <View style={styles.stickyHeaderContent}>
           <TouchableOpacity style={styles.headerCircleButton} onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={24} color="#1a1f36" />
+            <Ionicons name="arrow-back" size={24} color="#059669" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>{property?.title}</Text>
+          <View style={styles.logoContainer}>
+            <View style={styles.logoIconBgMini}>
+              <Ionicons name="home" size={14} color="#fff" />
+            </View>
+            <Text style={styles.logoSangrurMini}>Sangrur<Text style={styles.logoEstateMini}>Estate</Text></Text>
+          </View>
           <TouchableOpacity style={styles.headerCircleButton} onPress={handleToggleSave}>
-            <Ionicons name={isSaved ? "heart" : "heart-outline"} size={22} color={isSaved ? "#ff4d4d" : "#1a1f36"} />
+            <Ionicons name={isSaved ? "heart" : "heart-outline"} size={22} color={isSaved ? "#ff4d4d" : "#059669"} />
           </TouchableOpacity>
         </View>
       </Animated.View>
@@ -266,26 +274,33 @@ export default function PropertyDetailsPage() {
 
           <View style={styles.premiumSpecsContainer}>
             <View style={styles.premiumSpec}>
-              <View style={styles.specIconBg}><Ionicons name="expand-outline" size={20} color="#1a1f36" /></View>
+              <View style={styles.specIconBg}><Ionicons name="expand-outline" size={20} color="#059669" /></View>
               <View>
                 <Text style={styles.specVal}>{property.area} {property.unit}</Text>
                 <Text style={styles.specLab}>Total Area</Text>
               </View>
             </View>
-
-            {property.property_type === 'HOUSE' && (
-              <>
-                <View style={styles.specDivider} />
-                <View style={styles.premiumSpec}>
-                  <View style={styles.specIconBg}><Ionicons name="bed-outline" size={20} color="#1a1f36" /></View>
-                  <View>
-                    <Text style={styles.specVal}>{property.bedrooms} Beds</Text>
-                    <Text style={styles.specLab}>High Comfort</Text>
-                  </View>
-                </View>
-              </>
-            )}
           </View>
+
+          {property.property_type === 'HOUSE' && (
+            <View style={[styles.premiumSpecsContainer, { marginTop: 12 }]}>
+              <View style={styles.premiumSpec}>
+                <View style={styles.specIconBg}><Ionicons name="bed-outline" size={20} color="#059669" /></View>
+                <View>
+                  <Text style={styles.specVal}>{property.bedrooms} Beds</Text>
+                  <Text style={styles.specLab}>High Comfort</Text>
+                </View>
+              </View>
+              <View style={styles.specDivider} />
+              <View style={styles.premiumSpec}>
+                <View style={styles.specIconBg}><Ionicons name="water-outline" size={20} color="#059669" /></View>
+                <View>
+                  <Text style={styles.specVal}>{property.bathrooms} Baths</Text>
+                  <Text style={styles.specLab}>Modern Bath</Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           <View style={styles.divider} />
 
@@ -296,22 +311,44 @@ export default function PropertyDetailsPage() {
 
           <Text style={styles.sectionHeader}>Key Features</Text>
           <View style={styles.featuresGrid}>
+            {/* Always show Verified Property */}
             <View style={styles.featureItem}>
-              <Ionicons name="shield-checkmark-outline" size={24} color="#1a1f36" />
+              <Ionicons name="shield-checkmark-outline" size={24} color="#059669" />
               <Text style={styles.featureText}>Verified Property</Text>
             </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="water-outline" size={24} color="#1a1f36" />
-              <Text style={styles.featureText}>Water Supply</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="bulb-outline" size={24} color="#1a1f36" />
-              <Text style={styles.featureText}>Electricity</Text>
-            </View>
-            <View style={styles.featureItem}>
-              <Ionicons name="car-outline" size={24} color="#1a1f36" />
-              <Text style={styles.featureText}>Parking Space</Text>
-            </View>
+
+            {/* Render dynamic amenities */}
+            {property.amenities && property.amenities.length > 0 &&
+              property.amenities.map((item) => {
+                // Handle both ID (number/string) and Object cases
+                const amenity = typeof item === 'object' ? item : allAmenities.find(a => a.id == item);
+                if (!amenity) return null;
+
+                // Map backend icon names to MaterialCommunityIcons names
+                let iconName = amenity.icon_name || 'sparkles';
+
+                const iconMap = {
+                  'bulb': 'lightbulb-on',
+                  'parking': 'parking',
+                  'chair-rollin': 'chair-rolling',
+                  'road-variant': 'road-variant',
+                  'cctv': 'cctv',
+                  'sofa': 'sofa',
+                  'gate': 'gate',
+                  'fence': 'fence',
+                  'wifi': 'wifi',
+                  'water': 'water-pump'
+                };
+
+                const finalIcon = iconMap[iconName] || (iconName === 'sparkles' ? 'sparkles' : iconName);
+
+                return (
+                  <View key={amenity.id} style={styles.featureItem}>
+                    <MaterialCommunityIcons name={finalIcon} size={24} color="#059669" />
+                    <Text style={styles.featureText}>{amenity.name}</Text>
+                  </View>
+                );
+              })}
           </View>
 
           <View style={styles.divider} />
@@ -336,7 +373,7 @@ export default function PropertyDetailsPage() {
           </View>
 
           <TouchableOpacity style={styles.mapButton} onPress={() => Alert.alert("Opening Maps", "Launching navigation to property location...")}>
-            <Ionicons name="map-outline" size={20} color="#1a1f36" />
+            <Ionicons name="map-outline" size={20} color="#059669" />
             <Text style={styles.mapButtonText}>View Location on Map</Text>
           </TouchableOpacity>
 
@@ -466,12 +503,12 @@ const styles = StyleSheet.create({
   specsRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%' },
   // Aligned spec block to center text properly even for large numbers
   specBlock: { flex: 1, backgroundColor: '#F7F8FA', borderRadius: 16, paddingVertical: 16, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', marginHorizontal: 4 },
-  specBlockIcon: { fontSize: 24, marginBottom: 8, color: '#1a1f36' },
+  specBlockIcon: { fontSize: 24, marginBottom: 8, color: '#059669' },
   specBlockValue: { fontSize: 16, fontWeight: '700', color: '#1a1f36', textAlign: 'center' },
   specBlockLabel: { fontSize: 12, color: '#8890a6', marginTop: 2 },
   mapPlaceholder: { height: 180, backgroundColor: '#eee', borderRadius: 20, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   footer: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 24, paddingBottom: Platform.OS === 'ios' ? 34 : 24, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#f0f0f0' },
-  inquireButton: { backgroundColor: '#1a1f36', height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', shadowColor: '#1a1f36', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
+  inquireButton: { backgroundColor: '#059669', height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', shadowColor: '#059669', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 4 },
   inquireButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   // --- NEW IMAGE ENHANCEMENTS ---
@@ -607,6 +644,10 @@ const styles = StyleSheet.create({
     marginHorizontal: 12,
     textAlign: 'center',
   },
+  logoContainer: { flexDirection: 'row', alignItems: 'center', flex: 1, justifyContent: 'center' },
+  logoIconBgMini: { width: 26, height: 26, borderRadius: 8, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginRight: 8 },
+  logoSangrurMini: { fontSize: 15, fontWeight: '900', color: '#1a1f36', letterSpacing: -0.5 },
+  logoEstateMini: { color: '#059669', fontWeight: '400' },
   headerCircleButton: {
     width: 40,
     height: 40,
@@ -717,7 +758,7 @@ const styles = StyleSheet.create({
   agentCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1a1f36',
+    backgroundColor: '#059669',
     padding: 20,
     borderRadius: 24,
     marginTop: 10,
@@ -726,7 +767,7 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#323952',
+    backgroundColor: '#064e3b',
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
@@ -747,7 +788,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#1a1f36',
+    borderColor: '#059669',
   },
   agentInfo: {
     flex: 1,
@@ -783,7 +824,7 @@ const styles = StyleSheet.create({
   agentStatDivider: {
     width: 1,
     height: 15,
-    backgroundColor: '#323952',
+    backgroundColor: '#064e3b',
     marginHorizontal: 15,
   },
   mapButton: {

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet, Text, View, FlatList, TouchableOpacity,
-  Alert, SafeAreaView, ActivityIndicator, Dimensions
+  Alert, ActivityIndicator, Dimensions
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getFavorites, toggleFavorite, MEDIA_BASE_URL } from '../services/api';
@@ -70,7 +71,7 @@ export default function SavedPropertiesPage() {
       </View>
 
       {loading ? (
-        <View style={styles.centered}><ActivityIndicator size="large" color="#1a1f36" /></View>
+        <View style={styles.centered}><ActivityIndicator size="large" color="#059669" /></View>
       ) : (
         <FlatList
           data={properties}
@@ -119,6 +120,6 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 60, marginBottom: 20 },
   emptyTitle: { fontSize: 22, fontWeight: '700', color: '#1a1f36', marginBottom: 8 },
   emptySubtitle: { fontSize: 15, color: '#8890a6', textAlign: 'center', lineHeight: 22, marginBottom: 24 },
-  exploreBtn: { backgroundColor: '#1a1f36', paddingHorizontal: 30, paddingVertical: 14, borderRadius: 28 },
+  exploreBtn: { backgroundColor: '#059669', paddingHorizontal: 30, paddingVertical: 14, borderRadius: 28 },
   exploreBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' }
 });

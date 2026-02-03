@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, Alert, ActivityIndicator, ScrollView, TextInput, Platform } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Alert, ActivityIndicator, ScrollView, TextInput, Platform } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
   avatar: { width: 100, height: 100, borderRadius: 50, marginBottom: 10 },
   name: { fontSize: 22, fontWeight: '700' },
   email: { fontSize: 14, color: '#888', marginBottom: 10 },
-  editBtn: { backgroundColor: '#1a1f36', paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20 },
+  editBtn: { backgroundColor: '#059669', paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20 },
   editBtnText: { color: '#fff', fontSize: 14 },
   nameInput: { fontSize: 22, fontWeight: '700', borderBottomWidth: 1, borderBottomColor: '#ccc', textAlign: 'center', marginBottom: 5, width: '80%' },
   detailInput: { fontSize: 16, fontWeight: '500', color: '#1a1f36', borderBottomWidth: 1, borderBottomColor: '#eee', paddingVertical: 2 },

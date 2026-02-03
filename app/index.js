@@ -7,10 +7,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, ImageBackground, TouchableOpacity,
-  TextInput, SafeAreaView, StatusBar, KeyboardAvoidingView,
+  TextInput, StatusBar, KeyboardAvoidingView,
   Platform, Dimensions, Alert, ActivityIndicator, Linking,
   Animated, Pressable, ScrollView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -199,7 +200,7 @@ export default function AuthScreen() {
       </Text>
       <TouchableOpacity style={styles.primaryButton} activeOpacity={0.8} onPress={() => animateToStep(2)}>
         <Text style={styles.primaryButtonText}>Discover Now</Text>
-        <Ionicons name="arrow-forward" size={18} color="#000" style={{ marginLeft: 8 }} />
+        <Ionicons name="arrow-forward" size={18} color="#059669" style={{ marginLeft: 8 }} />
       </TouchableOpacity>
     </View>
   );
@@ -332,10 +333,18 @@ export default function AuthScreen() {
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
           <View style={styles.contentWrapper}>
             <View style={styles.headerSection}>
-              <View style={styles.logoCircle}>
-                <Ionicons name="home" size={24} color="#000" />
+              <View style={styles.logoContainer}>
+                <View style={[styles.logoCircle, { backgroundColor: '#059669' }]}>
+                  <Ionicons name="home" size={22} color="#fff" />
+                  <View style={styles.logoBadge}>
+                    <Ionicons name="sparkles" size={10} color="#fff" />
+                  </View>
+                </View>
+                <View style={styles.logoTextContainer}>
+                  <Text style={styles.logoSangrur}>Sangrur</Text>
+                  <Text style={styles.logoEstate}>Estate</Text>
+                </View>
               </View>
-              <Text style={styles.brandTitle}>SangrurEstate</Text>
             </View>
 
             <ScrollView
@@ -365,8 +374,13 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   safeArea: { flex: 1 },
   contentWrapper: { flex: 1, paddingHorizontal: 32, paddingBottom: 40 },
-  headerSection: { marginTop: 20, flexDirection: 'row', alignItems: 'center' },
-  logoCircle: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  headerSection: { marginTop: 20 },
+  logoContainer: { flexDirection: 'row', alignItems: 'center' },
+  logoCircle: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginRight: 15, position: 'relative' },
+  logoBadge: { position: 'absolute', top: -4, right: -4, backgroundColor: '#10b981', width: 18, height: 18, borderRadius: 9, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#000' },
+  logoTextContainer: { flexDirection: 'column' },
+  logoSangrur: { color: '#fff', fontSize: 18, fontWeight: '900', letterSpacing: -0.5, lineHeight: 18 },
+  logoEstate: { color: '#059669', fontSize: 14, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginTop: 2 },
   brandTitle: { color: '#fff', fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
 
   mainContent: { paddingVertical: 20 },

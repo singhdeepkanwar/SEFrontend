@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity, FlatList, Alert, ActivityIndicator, Platform,
-  SafeAreaView, Animated, ScrollView
+  Animated, ScrollView
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -108,7 +109,7 @@ export default function ManagePropertiesPage() {
       case 'VIEWING': return '#ED8936';
       case 'OFFER': return '#48BB78';
       case 'CLOSED': return '#718096';
-      default: return '#1a1f36';
+      default: return '#059669';
     }
   };
 
@@ -180,17 +181,17 @@ export default function ManagePropertiesPage() {
             {item.property_type === 'HOUSE' && (
               <>
                 <View style={styles.statBox}>
-                  <Ionicons name="bed-outline" size={16} color="#1a1f36" />
+                  <Ionicons name="bed-outline" size={16} color="#059669" />
                   <Text style={styles.statLabel}>{item.bedrooms || 0} Beds</Text>
                 </View>
                 <View style={styles.statBox}>
-                  <Ionicons name="water-outline" size={16} color="#1a1f36" />
+                  <Ionicons name="water-outline" size={16} color="#059669" />
                   <Text style={styles.statLabel}>{item.bathrooms || 0} Baths</Text>
                 </View>
               </>
             )}
             <View style={[styles.statBox, item.property_type !== 'HOUSE' && { flex: 1, justifyContent: 'flex-start' }]}>
-              <Ionicons name="expand-outline" size={16} color="#1a1f36" />
+              <Ionicons name="expand-outline" size={16} color="#059669" />
               <Text style={styles.statLabel}>{item.area} {item.unit}</Text>
             </View>
           </View>
@@ -199,7 +200,7 @@ export default function ManagePropertiesPage() {
 
       <View style={styles.actionRow}>
         <TouchableOpacity style={styles.actionBtn} onPress={() => handleEdit(item)}>
-          <Ionicons name="create-outline" size={18} color="#1a1f36" />
+          <Ionicons name="create-outline" size={18} color="#059669" />
           <Text style={styles.actionBtnText}>Edit</Text>
         </TouchableOpacity>
         <View style={styles.actionDivider} />
@@ -219,7 +220,7 @@ export default function ManagePropertiesPage() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Managed Listings</Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => router.push('/ListPropertyPage')}>
-          <Ionicons name="add-circle" size={28} color="#1a1f36" />
+          <Ionicons name="add-circle" size={28} color="#059669" />
         </TouchableOpacity>
       </View>
 
@@ -239,7 +240,7 @@ export default function ManagePropertiesPage() {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <View style={styles.emptyIconBg}>
-                <Ionicons name="business-outline" size={40} color="#1a1f36" />
+                <Ionicons name="business-outline" size={40} color="#059669" />
               </View>
               <Text style={styles.emptyHeader}>No Listings Yet</Text>
               <Text style={styles.emptySub}>Start sharing your properties with thousands of buyers in Sangrur.</Text>
@@ -322,6 +323,6 @@ const styles = StyleSheet.create({
   emptyIconBg: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', marginBottom: 20, elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10 },
   emptyHeader: { fontSize: 20, fontWeight: '800', color: '#1a1f36', marginBottom: 8 },
   emptySub: { fontSize: 14, color: '#8890a6', textAlign: 'center', lineHeight: 22, marginBottom: 30 },
-  listNowBtn: { paddingVertical: 14, paddingHorizontal: 30, borderRadius: 16, backgroundColor: '#1a1f36' },
+  listNowBtn: { paddingVertical: 14, paddingHorizontal: 30, borderRadius: 16, backgroundColor: '#059669' },
   listNowBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

@@ -8,11 +8,12 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  StyleSheet, Text, View, TouchableOpacity, SafeAreaView,
+  StyleSheet, Text, View, TouchableOpacity,
   StatusBar, FlatList, Modal, TextInput, ScrollView, ActivityIndicator,
   Platform, Alert, TouchableWithoutFeedback, ImageBackground,
   Animated
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -148,7 +149,13 @@ export default function HomePage() {
 
   const renderHeader = () => (
     <View style={styles.header}>
-      <Text style={styles.compactLogo}>Sangrur<Text style={{ fontWeight: '400', color: '#8890a6' }}>Estate</Text></Text>
+      <View style={styles.logoContainer}>
+        <View style={styles.logoIconBg}>
+          <Ionicons name="home" size={16} color="#fff" />
+          <View style={styles.miniLogoBadge} />
+        </View>
+        <Text style={styles.logoSangrur}>Sangrur<Text style={styles.logoEstate}>Estate</Text></Text>
+      </View>
 
       <View style={styles.compactModeSwitcher}>
         <TouchableOpacity
@@ -200,7 +207,7 @@ export default function HomePage() {
         style={[styles.catChip, activeFilter === 'Buy' && styles.catChipActive]}
         onPress={() => setActiveFilter('Buy')}
       >
-        <Ionicons name="home-outline" size={18} color={activeFilter === 'Buy' ? '#fff' : '#1a1f36'} style={{ marginRight: 8 }} />
+        <Ionicons name="home-outline" size={18} color={activeFilter === 'Buy' ? '#fff' : '#059669'} style={{ marginRight: 8 }} />
         <Text style={[styles.catText, activeFilter === 'Buy' && styles.catTextActive]}>Buy</Text>
       </TouchableOpacity>
 
@@ -208,7 +215,7 @@ export default function HomePage() {
         style={[styles.catChip, activeFilter === 'Rent' && styles.catChipActive]}
         onPress={() => setActiveFilter('Rent')}
       >
-        <Ionicons name="key-outline" size={18} color={activeFilter === 'Rent' ? '#fff' : '#1a1f36'} style={{ marginRight: 8 }} />
+        <Ionicons name="key-outline" size={18} color={activeFilter === 'Rent' ? '#fff' : '#059669'} style={{ marginRight: 8 }} />
         <Text style={[styles.catText, activeFilter === 'Rent' && styles.catTextActive]}>Rent</Text>
       </TouchableOpacity>
 
@@ -216,7 +223,7 @@ export default function HomePage() {
         style={[styles.catChip, propType === 'HOUSE' && styles.catChipActive]}
         onPress={() => setPropType(propType === 'HOUSE' ? '' : 'HOUSE')}
       >
-        <Ionicons name="business-outline" size={18} color={propType === 'HOUSE' ? '#fff' : '#1a1f36'} style={{ marginRight: 8 }} />
+        <Ionicons name="business-outline" size={18} color={propType === 'HOUSE' ? '#fff' : '#059669'} style={{ marginRight: 8 }} />
         <Text style={[styles.catText, propType === 'HOUSE' && styles.catTextActive]}>Houses</Text>
       </TouchableOpacity>
 
@@ -224,7 +231,7 @@ export default function HomePage() {
         style={[styles.catChip, propType === 'PLOT' && styles.catChipActive]}
         onPress={() => setPropType(propType === 'PLOT' ? '' : 'PLOT')}
       >
-        <Ionicons name="map-outline" size={18} color={propType === 'PLOT' ? '#fff' : '#1a1f36'} style={{ marginRight: 8 }} />
+        <Ionicons name="map-outline" size={18} color={propType === 'PLOT' ? '#fff' : '#059669'} style={{ marginRight: 8 }} />
         <Text style={[styles.catText, propType === 'PLOT' && styles.catTextActive]}>Land</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -282,17 +289,17 @@ export default function HomePage() {
           {item.property_type === 'HOUSE' && (
             <>
               <View style={styles.statBox}>
-                <Ionicons name="bed-outline" size={16} color="#1a1f36" />
+                <Ionicons name="bed-outline" size={16} color="#059669" />
                 <Text style={styles.statLabel}>{item.bedrooms || 0} Beds</Text>
               </View>
               <View style={styles.statBox}>
-                <Ionicons name="water-outline" size={16} color="#1a1f36" />
+                <Ionicons name="water-outline" size={16} color="#059669" />
                 <Text style={styles.statLabel}>{item.bathrooms || 0} Baths</Text>
               </View>
             </>
           )}
           <View style={[styles.statBox, item.property_type !== 'HOUSE' && { flex: 1, justifyContent: 'flex-start' }]}>
-            <Ionicons name="expand-outline" size={16} color="#1a1f36" />
+            <Ionicons name="expand-outline" size={16} color="#059669" />
             <Text style={styles.statLabel}>{item.area} {item.unit}</Text>
           </View>
         </View>
@@ -306,7 +313,7 @@ export default function HomePage() {
 
       <TouchableOpacity style={styles.sellOptionCard} onPress={() => router.push('/ListPropertyPage')}>
         <View style={styles.sellOptionIconContainer}>
-          <Ionicons name="add-circle" size={32} color="#1a1f36" />
+          <Ionicons name="add-circle" size={32} color="#059669" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.sellOptionTitle}>List a property</Text>
@@ -317,7 +324,7 @@ export default function HomePage() {
 
       <TouchableOpacity style={styles.sellOptionCard} onPress={() => router.push('/ManagePropertiesPage')}>
         <View style={styles.sellOptionIconContainer}>
-          <Ionicons name="layers" size={28} color="#1a1f36" />
+          <Ionicons name="layers" size={28} color="#059669" />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.sellOptionTitle}>Manage properties</Text>
@@ -401,7 +408,7 @@ export default function HomePage() {
                 ListEmptyComponent={!loading && (
                   <View style={styles.emptyContainer}>
                     <View style={styles.emptyIconBg}>
-                      <Ionicons name="search-outline" size={40} color="#1a1f36" />
+                      <Ionicons name="search-outline" size={40} color="#059669" />
                     </View>
                     <Text style={styles.emptyHeader}>No Results Found</Text>
                     <Text style={styles.emptySub}>Try adjusting your filters or searching for a different area.</Text>
@@ -430,7 +437,7 @@ export default function HomePage() {
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>Refine Results</Text>
                 <TouchableOpacity style={styles.closeBtn} onPress={() => setModalVisible(false)}>
-                  <Ionicons name="close" size={20} color="#1a1f36" />
+                  <Ionicons name="close" size={20} color="#059669" />
                 </TouchableOpacity>
               </View>
 
@@ -499,6 +506,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     backgroundColor: '#fff'
   },
+  logoContainer: { flexDirection: 'row', alignItems: 'center' },
+  logoIconBg: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#059669', alignItems: 'center', justifyContent: 'center', marginRight: 10, position: 'relative' },
+  miniLogoBadge: { position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: 4, backgroundColor: '#10b981', borderWidth: 1, borderColor: '#fff' },
+  logoSangrur: { fontSize: 18, fontWeight: '900', color: '#1a1f36', letterSpacing: -0.5 },
+  logoEstate: { color: '#059669', fontWeight: '400' },
   compactLogo: { fontSize: 18, fontWeight: '800', color: '#1a1f36', letterSpacing: -0.5 },
   compactModeSwitcher: {
     flexDirection: 'row',
@@ -537,7 +549,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: '#1a1f36',
+    backgroundColor: '#059669',
     alignItems: 'center',
     justifyContent: 'center'
   },
@@ -556,7 +568,7 @@ const styles = StyleSheet.create({
     height: 40,
     marginTop: 10
   },
-  catChipActive: { backgroundColor: '#1a1f36', borderColor: '#1a1f36' },
+  catChipActive: { backgroundColor: '#059669', borderColor: '#059669' },
   catText: { fontSize: 13, fontWeight: '700', color: '#1a1f36' },
   catTextActive: { color: '#fff' },
 
@@ -619,7 +631,7 @@ const styles = StyleSheet.create({
   emptyIconBg: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F0F2F5', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   emptyHeader: { fontSize: 20, fontWeight: '800', color: '#1a1f36', marginBottom: 8 },
   emptySub: { fontSize: 14, color: '#8890a6', textAlign: 'center', lineHeight: 22, paddingHorizontal: 40, marginBottom: 24 },
-  resetBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#1a1f36' },
+  resetBtn: { paddingVertical: 12, paddingHorizontal: 24, borderRadius: 12, backgroundColor: '#059669' },
   resetBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
   modalContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
@@ -659,16 +671,16 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#f0f0f0'
   },
-  pillActive: { backgroundColor: '#1a1f36', borderColor: '#1a1f36' },
+  pillActive: { backgroundColor: '#059669', borderColor: '#059669' },
   pillText: { fontSize: 14, fontWeight: '600', color: '#8890a6' },
   pillTextActive: { color: '#fff' },
   applyBtn: {
-    backgroundColor: '#1a1f36',
+    backgroundColor: '#059669',
     height: 56,
     borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#1a1f36',
+    shadowColor: '#059669',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

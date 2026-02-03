@@ -7,12 +7,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet, Text, View, TouchableOpacity, TextInput, ScrollView, Alert, ActivityIndicator, Platform,
-  SafeAreaView, Modal, FlatList, Keyboard, KeyboardAvoidingView, TouchableWithoutFeedback
+  Modal, FlatList, Keyboard, KeyboardAvoidingView, TouchableWithoutFeedback
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
-import { createProperty, updateProperty, MEDIA_BASE_URL } from '../services/api';
+import { createProperty, updateProperty, getAmenities, MEDIA_BASE_URL } from '../services/api';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { validateInput } from '../utils/validation';
 
@@ -56,9 +57,16 @@ export default function ListPropertyPage() {
   const [area, setArea] = useState(propertyToEdit?.area ? String(propertyToEdit.area) : '');
   const [areaUnit, setAreaUnit] = useState(reverseUnitMap[propertyToEdit?.unit] || propertyToEdit?.unit || 'Gaj');
 
-  const [location, setLocation] = useState(propertyToEdit?.address || 'Sangrur');
+  const [location, setLocation] = useState(propertyToEdit?.address || '');
+  const [city, setCity] = useState(propertyToEdit?.city || 'Sangrur');
   const [description, setDescription] = useState(propertyToEdit?.description || '');
-  const [amenities, setAmenities] = useState(propertyToEdit?.amenities || []);
+  const [amenities, setAmenities] = useState(
+    (propertyToEdit?.amenities || []).map(item => typeof item === 'object' ? item.id : item)
+  );
+  const [allAmenities, setAllAmenities] = useState([]);
+  const [amenitiesLoading, setAmenitiesLoading] = useState(false);
+
+  const [errors, setErrors] = useState({});
 
   // Initialize images with existing ones if in edit mode
   // Initialize images as objects with metadata
@@ -76,6 +84,22 @@ export default function ListPropertyPage() {
   const areaUnits = ["Gaj", "Sq. Yard", "Marla", "Kanal", "Acre", "Sq. Feet", "Sq. Meter"];
   const sellPriceUnits = ["Lakh", "Crore"];
   const rentPriceUnits = ["Thousand", "Lakh"];
+
+  useEffect(() => {
+    fetchAmenities();
+  }, []);
+
+  const fetchAmenities = async () => {
+    setAmenitiesLoading(true);
+    try {
+      const res = await getAmenities();
+      setAllAmenities(res.data || []);
+    } catch (error) {
+      console.error("Failed to fetch amenities:", error);
+    } finally {
+      setAmenitiesLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!isEditMode) {
@@ -123,12 +147,28 @@ export default function ListPropertyPage() {
   };
 
   const handlePostProperty = async () => {
+    // Reset errors
+    setErrors({});
+    const newErrors = {};
+
     // Validation
-    if (!validateInput(propertyName, "Property Name") || !validateInput(description, "Description") || !validateInput(location, "Location")) return;
-    if (!propertyName || !price || !area || !location) {
-      Alert.alert("Missing Fields", "Please fill in all required fields.");
+    if (!propertyName.trim()) newErrors.propertyName = "Property Title is required";
+    if (!description.trim()) newErrors.description = "Please provide a description";
+    if (!price || isNaN(parseFloat(price))) newErrors.price = "Enter a valid price";
+    if (!area || isNaN(parseFloat(area))) newErrors.area = "Enter a valid area size";
+    if (!location.trim()) newErrors.location = "Address is required";
+    if (!city.trim()) newErrors.city = "City name is required";
+    if (!propertyType) newErrors.propertyType = "Select a property type";
+    if (!listingType) newErrors.listingType = "Select listing type";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      Alert.alert("Missing Information", "Please correct the highlighted fields before submitting.");
       return;
     }
+
+    // Content Safety Validation
+    if (!validateInput(propertyName, "Property Name") || !validateInput(description, "Description") || !validateInput(location, "Location") || !validateInput(city, "City")) return;
 
     setLoading(true);
     try {
@@ -161,7 +201,7 @@ export default function ListPropertyPage() {
       }
       appendIfChanged('description', description, propertyToEdit?.description);
       appendIfChanged('address', location, propertyToEdit?.address);
-      appendIfChanged('city', 'Sangrur', propertyToEdit?.city);
+      appendIfChanged('city', city, propertyToEdit?.city);
 
       const backendListingType = listingType === 'sell' ? 'SALE' : 'RENT';
       appendIfChanged('listing_type', backendListingType, propertyToEdit?.listing_type);
@@ -179,20 +219,28 @@ export default function ListPropertyPage() {
       }
 
       // Handle amenities: Check if changed.
-      const oldAmenities = (propertyToEdit?.amenities || []).map(String).sort().join(',');
-      const newAmenities = amenities.map(String).sort().join(',');
+      const normalizedNewAmenities = amenities.map(item => typeof item === 'object' ? item.id : item);
+      const oldAmenities = (propertyToEdit?.amenities || [])
+        .map(item => String(typeof item === 'object' ? item.id : item))
+        .sort().join(',');
+      const newAmenities = normalizedNewAmenities.map(String).sort().join(',');
+
+      if (__DEV__) {
+        console.log("Amenities to send:", normalizedNewAmenities);
+      }
 
       if (!isEditMode || oldAmenities !== newAmenities) {
-        if (amenities && amenities.length > 0) {
-          amenities.forEach(id => {
-            formData.append('amenities', String(id));
+        // DRF Handle multiple fields with the same name for ListField
+        // Using 'amenities' or 'amenities[]' - 'amenities' is standard for DRF
+        // but 'amenities[]' is safer for some middleware.
+        if (normalizedNewAmenities.length > 0) {
+          normalizedNewAmenities.forEach(id => {
+            formData.append('amenities', id);
           });
           changedKeys.push('amenities');
         } else if (isEditMode) {
-          // If amenities cleared in edit mode, we might need to send something to clear it?
-          // DRF usually requires an empty list or special handling. 
-          // For now, if length is 0 and it changed, we do nothing (or should we send empty?)
-          // Assuming default clear behavior.
+          // Omit appending if empty to avoid type errors in DRF multipart
+          changedKeys.push('amenities');
         }
       }
 
@@ -280,25 +328,43 @@ export default function ListPropertyPage() {
           <TouchableOpacity style={[styles.toggleOption, listingType === 'rent' && styles.toggleActive]} onPress={() => setListingType('rent')}><Text style={[styles.toggleText, listingType === 'rent' && styles.toggleTextActive]}>Rent</Text></TouchableOpacity>
         </View>
 
-        <Text style={styles.label}>Property Name</Text>
-        <TextInput style={styles.input} placeholder="e.g. Plot for Sale, PG for Rent, Shop for Rent" placeholderTextColor="#8890a6" value={propertyName} onChangeText={setPropertyName} />
+        <Text style={styles.label}>Property Title <Text style={styles.requiredAsterisk}>*</Text></Text>
+        <TextInput
+          style={[styles.input, errors.propertyName && styles.inputError]}
+          placeholder="e.g. Plot for Sale, PG for Rent, Shop for Rent"
+          placeholderTextColor="#8890a6"
+          value={propertyName}
+          onChangeText={(txt) => { setPropertyName(txt); if (errors.propertyName) setErrors({ ...errors, propertyName: null }); }}
+        />
+        {errors.propertyName && <Text style={styles.errorText}>{errors.propertyName}</Text>}
 
-        <Text style={styles.label}>Property Type</Text>
+        <Text style={styles.label}>Property Type <Text style={styles.requiredAsterisk}>*</Text></Text>
         <View style={styles.chipRow}>
           {['House', 'Plot', 'Commercial'].map((type) => (
-            <TouchableOpacity key={type} style={[styles.chip, propertyType === type && styles.chipActive]} onPress={() => setPropertyType(type)}><Text style={[styles.chipText, propertyType === type && styles.chipTextActive]}>{type}</Text></TouchableOpacity>
+            <TouchableOpacity
+              key={type}
+              style={[
+                styles.chip,
+                propertyType === type && styles.chipActive,
+                errors.propertyType && !propertyType && styles.chipError
+              ]}
+              onPress={() => { setPropertyType(type); if (errors.propertyType) setErrors({ ...errors, propertyType: null }); }}
+            >
+              <Text style={[styles.chipText, propertyType === type && styles.chipTextActive]}>{type}</Text>
+            </TouchableOpacity>
           ))}
         </View>
+        {errors.propertyType && <Text style={styles.errorText}>{errors.propertyType}</Text>}
 
-        <Text style={styles.label}>Price</Text>
-        <View style={styles.inputContainerWithPicker}>
+        <Text style={styles.label}>Price <Text style={styles.requiredAsterisk}>*</Text></Text>
+        <View style={[styles.inputContainerWithPicker, errors.price && styles.inputError]}>
           <TextInput
             style={[styles.flexInput, { borderRightWidth: 1, borderRightColor: '#eee' }]}
             placeholder="Amount"
             placeholderTextColor="#8890a6"
             keyboardType="numeric"
             value={price}
-            onChangeText={setPrice}
+            onChangeText={(txt) => { setPrice(txt); if (errors.price) setErrors({ ...errors, price: null }); }}
           />
           <TouchableOpacity
             style={styles.pickerTrigger}
@@ -307,6 +373,7 @@ export default function ListPropertyPage() {
             <Text style={styles.pickerTriggerText}>{priceUnit} ▾</Text>
           </TouchableOpacity>
         </View>
+        {errors.price && <Text style={styles.errorText}>{errors.price}</Text>}
         {price ? (
           <Text style={styles.pricePreview}>
             ₹ {getRawPrice().toLocaleString('en-IN')}
@@ -320,15 +387,15 @@ export default function ListPropertyPage() {
           </View>
         )}
 
-        <Text style={styles.label}>Area Size</Text>
-        <View style={styles.inputContainerWithPicker}>
+        <Text style={styles.label}>Area Size <Text style={styles.requiredAsterisk}>*</Text></Text>
+        <View style={[styles.inputContainerWithPicker, errors.area && styles.inputError]}>
           <TextInput
             style={[styles.flexInput, { borderRightWidth: 1, borderRightColor: '#eee' }]}
             placeholder="Size"
             placeholderTextColor="#8890a6"
             keyboardType="numeric"
             value={area}
-            onChangeText={setArea}
+            onChangeText={(txt) => { setArea(txt); if (errors.area) setErrors({ ...errors, area: null }); }}
           />
           <TouchableOpacity
             style={styles.pickerTrigger}
@@ -337,25 +404,71 @@ export default function ListPropertyPage() {
             <Text style={styles.pickerTriggerText}>{areaUnit} ▾</Text>
           </TouchableOpacity>
         </View>
+        {errors.area && <Text style={styles.errorText}>{errors.area}</Text>}
 
-        <Text style={styles.label}>Location</Text>
-        <View style={styles.locationContainer}>
-          <TextInput style={[styles.input, { borderWidth: 0, marginBottom: 0, flex: 1 }]} placeholder="Enter Address" placeholderTextColor="#8890a6" value={location} onChangeText={setLocation} />
+        <Text style={styles.label}>City <Text style={styles.requiredAsterisk}>*</Text></Text>
+        <TextInput
+          style={[styles.input, errors.city && styles.inputError]}
+          placeholder="e.g. Sangrur, Sunam, Dhuri"
+          placeholderTextColor="#8890a6"
+          value={city}
+          onChangeText={(txt) => { setCity(txt); if (errors.city) setErrors({ ...errors, city: null }); }}
+        />
+        {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
+
+        <Text style={styles.label}>Address <Text style={styles.requiredAsterisk}>*</Text></Text>
+        <View style={[styles.locationContainer, errors.location && styles.inputError]}>
+          <TextInput
+            style={[styles.input, { borderWidth: 0, marginBottom: 0, flex: 1 }]}
+            placeholder="Full Address"
+            placeholderTextColor="#8890a6"
+            value={location}
+            onChangeText={(txt) => { setLocation(txt); if (errors.location) setErrors({ ...errors, location: null }); }}
+          />
           <TouchableOpacity style={styles.pinButton} onPress={() => Alert.alert("Map Feature", "Map Pin Drop here.")}><Text style={{ fontSize: 20 }}>📍</Text></TouchableOpacity>
         </View>
+        {errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
 
-        <Text style={styles.label}>Description</Text>
+        <Text style={styles.label}>Description <Text style={styles.requiredAsterisk}>*</Text></Text>
         <TextInput
-          style={[styles.input, { height: 120, paddingTop: 12 }]}
+          style={[styles.input, { height: 120, paddingTop: 12 }, errors.description && styles.inputError]}
           placeholder="Describe your property..."
           placeholderTextColor="#8890a6"
           multiline={true}
           value={description}
-          onChangeText={setDescription}
+          onChangeText={(txt) => { setDescription(txt); if (errors.description) setErrors({ ...errors, description: null }); }}
           returnKeyType="done"
           blurOnSubmit={true}
           onSubmitEditing={() => Keyboard.dismiss()}
         />
+        {errors.description && <Text style={styles.errorText}>{errors.description}</Text>}
+
+        <Text style={styles.label}>Amenities</Text>
+        {amenitiesLoading ? (
+          <ActivityIndicator size="small" color="#059669" style={{ marginVertical: 10 }} />
+        ) : (
+          <View style={styles.chipRow}>
+            {allAmenities.map((amenity) => {
+              const currentAmenityIds = amenities.map(item => typeof item === 'object' ? item.id : item);
+              const isSelected = currentAmenityIds.includes(amenity.id);
+              return (
+                <TouchableOpacity
+                  key={amenity.id}
+                  style={[styles.chip, isSelected && styles.chipActive, { marginBottom: 10 }]}
+                  onPress={() => {
+                    if (isSelected) {
+                      setAmenities(currentAmenityIds.filter(id => id !== amenity.id));
+                    } else {
+                      setAmenities([...currentAmenityIds, amenity.id]);
+                    }
+                  }}
+                >
+                  <Text style={[styles.chipText, isSelected && styles.chipTextActive]}>{amenity.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
 
         <Text style={styles.label}>Property Images</Text>
         <View style={{ height: 100, marginBottom: 20 }}>
@@ -437,18 +550,18 @@ const styles = StyleSheet.create({
   toggleOption: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 10 },
   toggleActive: { backgroundColor: '#fff', shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
   toggleText: { fontWeight: '600', color: '#8890a6' },
-  toggleTextActive: { color: '#1a1f36' },
+  toggleTextActive: { color: '#059669' },
   label: { fontSize: 15, fontWeight: '700', color: '#1a1f36', marginBottom: 8, marginTop: 10 },
   input: { backgroundColor: '#F7F8FA', borderRadius: 12, paddingHorizontal: 16, height: 50, fontSize: 17, color: '#1a1f36', marginBottom: 10 },
-  chipRow: { flexDirection: 'row', marginBottom: 10 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 10 },
   chip: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20, borderWidth: 1, borderColor: '#eee', marginRight: 10 },
-  chipActive: { backgroundColor: '#1a1f36', borderColor: '#1a1f36' },
+  chipActive: { backgroundColor: '#059669', borderColor: '#059669' },
   chipText: { color: '#5e6c84' },
   chipTextActive: { color: '#fff', fontWeight: '600' },
   rowInputContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
   unitSelector: { flexDirection: 'row', flex: 2, justifyContent: 'flex-end' },
   unitBtn: { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, backgroundColor: '#F7F8FA', marginLeft: 6, borderWidth: 1, borderColor: '#eee' },
-  unitBtnActive: { backgroundColor: '#1a1f36', borderColor: '#1a1f36' },
+  unitBtnActive: { backgroundColor: '#059669', borderColor: '#059669' },
   unitText: { fontSize: 12, color: '#5e6c84' },
   unitTextActive: { color: '#fff' },
   locationContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F7F8FA', borderRadius: 12, paddingRight: 5, marginBottom: 10 },
@@ -457,7 +570,7 @@ const styles = StyleSheet.create({
   thumbnailContainer: { position: 'relative', marginRight: 10 },
   thumbnail: { width: 80, height: 80, borderRadius: 12 },
   removeBtn: { position: 'absolute', top: -5, right: -5, backgroundColor: 'red', width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  postButton: { backgroundColor: '#1a1f36', height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 30, marginBottom: 20 },
+  postButton: { backgroundColor: '#059669', height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 30, marginBottom: 20 },
   postButtonText: { color: '#fff', fontSize: 18, fontWeight: '700' },
 
   // --- NEW STYLES FOR DROPDOWN & KEYBOARD ---
@@ -550,5 +663,24 @@ const styles = StyleSheet.create({
     marginTop: -5,
     marginBottom: 10,
     marginLeft: 5
+  },
+  requiredAsterisk: {
+    color: '#ff4d4f',
+  },
+  inputError: {
+    borderColor: '#ff4d4f',
+    borderWidth: 1.5,
+  },
+  chipError: {
+    borderColor: '#ff4d4f',
+    borderStyle: 'dashed',
+  },
+  errorText: {
+    color: '#ff4d4f',
+    fontSize: 12,
+    marginTop: -5,
+    marginBottom: 10,
+    marginLeft: 5,
+    fontWeight: '600',
   }
 });
