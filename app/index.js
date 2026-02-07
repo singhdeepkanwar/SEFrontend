@@ -33,7 +33,10 @@ export default function AuthScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
+
   const [city, setCity] = useState('');
+  const [isBrokerBuilder, setIsBrokerBuilder] = useState(false); // New state for checkbox
+  const [selectedRole, setSelectedRole] = useState(null); // New state for role selection
 
   const [sessionId, setSessionId] = useState(null);
   const [regToken, setRegToken] = useState(null);
@@ -163,15 +166,29 @@ export default function AuthScreen() {
       !validateInput(address, "Address") || !validateInput(city, "City")) return;
 
     if (!name) return Alert.alert("Error", "Name is required");
+
+    // Validate Broker/Builder selection
+    if (isBrokerBuilder && !selectedRole) {
+      return Alert.alert("Required", "Please select whether you are a Broker or Builder.");
+    }
+
+    const payload = {
+      full_name: name,
+      email,
+      city,
+      address,
+      role: isBrokerBuilder && selectedRole ? selectedRole.toLowerCase() : 'user' // Default to 'user' if not checked
+    };
+
     setLoading(true);
     try {
       if (regToken) {
-        const res = await register(regToken, { full_name: name, email, city, address });
+        const res = await register(regToken, payload);
         await AsyncStorage.setItem('access_token', res.data.access);
         await AsyncStorage.setItem('refresh_token', res.data.refresh);
       } else {
         // Existing user updating profile
-        await api.patch('/auth/profile/', { full_name: name, email, city, address });
+        await api.patch('/auth/profile/', payload);
       }
       Alert.alert("Success", "Profile Updated!");
       router.replace('/HomePage');
@@ -309,7 +326,54 @@ export default function AuthScreen() {
         <Text style={styles.compactInputLabel}>City/Town</Text>
         <TextInput style={styles.compactInputField} placeholder="Sangrur/Sunam/Dhuri/etc" placeholderTextColor="rgba(255,255,255,0.6)" value={city} onChangeText={setCity} />
       </View>
-      <TouchableOpacity style={[styles.primaryButton, { marginTop: 15, height: 48 }]} onPress={handleRegister} disabled={loading}>
+
+      {/* Broker/Builder Checkbox Section */}
+      <View style={{ marginBottom: 20 }}>
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}
+          onPress={() => {
+            setIsBrokerBuilder(!isBrokerBuilder);
+            if (!isBrokerBuilder) setSelectedRole(null); // Reset role if unchecking
+          }}
+          activeOpacity={0.8}
+        >
+          <View style={{
+            width: 24, height: 24, borderRadius: 6, borderWidth: 2,
+            borderColor: isBrokerBuilder ? '#059669' : 'rgba(255,255,255,0.4)',
+            backgroundColor: isBrokerBuilder ? '#059669' : 'transparent',
+            alignItems: 'center', justifyContent: 'center', marginRight: 12
+          }}>
+            {isBrokerBuilder && <Ionicons name="checkmark" size={16} color="#fff" />}
+          </View>
+          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Signup as Broker/Builder</Text>
+        </TouchableOpacity>
+
+        {isBrokerBuilder && (
+          <View style={{ flexDirection: 'row', gap: 12, paddingLeft: 36 }}>
+            {['Broker', 'Builder'].map((role) => (
+              <TouchableOpacity
+                key={role}
+                onPress={() => setSelectedRole(role)}
+                style={{
+                  flex: 1, paddingVertical: 10, borderRadius: 12, borderWidth: 1.5,
+                  borderColor: selectedRole === role ? '#059669' : 'rgba(255,255,255,0.15)',
+                  backgroundColor: selectedRole === role ? 'rgba(5,150,105,0.15)' : 'rgba(255,255,255,0.05)',
+                  alignItems: 'center', justifyContent: 'center'
+                }}
+              >
+                <Text style={{
+                  color: selectedRole === role ? '#059669' : 'rgba(255,255,255,0.6)',
+                  fontWeight: selectedRole === role ? '700' : '500'
+                }}>
+                  {role}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+
+      <TouchableOpacity style={[styles.primaryButton, { marginTop: 5, height: 48 }]} onPress={handleRegister} disabled={loading}>
         {loading ? <ActivityIndicator color="#000" /> : <Text style={styles.primaryButtonText}>Next</Text>}
       </TouchableOpacity>
     </View>
