@@ -11,14 +11,18 @@ import {
   StyleSheet, Text, View, TouchableOpacity,
   StatusBar, FlatList, Modal, TextInput, ScrollView, ActivityIndicator,
   Platform, Alert, TouchableWithoutFeedback, ImageBackground,
-  Animated
+  Animated, Dimensions
 } from 'react-native';
+
+const { width } = Dimensions.get('window');
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { getProperties, toggleFavorite, MEDIA_BASE_URL } from '../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import TutorialOverlay from '../components/TutorialOverlay';
 
 
 export default function HomePage() {
@@ -40,6 +44,89 @@ export default function HomePage() {
   // Shimmer & Data Fetching Refs
   const shimmerValue = useRef(new Animated.Value(0)).current;
   const requestIdRef = useRef(0); // Tracks current fetch request to avoid race conditions
+
+  // Tutorial Refs for Dynamic Positioning
+  const enquiredBtnRef = useRef(null);
+  const buySellRef = useRef(null);
+  const searchBarRef = useRef(null);
+
+  // Tutorial State
+  const [tutorialVisible, setTutorialVisible] = useState(false);
+  const [tutorialSteps, setTutorialSteps] = useState([]);
+
+  useEffect(() => {
+    // Small delay to ensure layout is complete before measuring
+    const timer = setTimeout(() => {
+      checkFirstTimeUser();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const measureElement = (ref) => {
+    return new Promise((resolve) => {
+      if (ref.current) {
+        ref.current.measure((x, y, width, height, pageX, pageY) => {
+          resolve({ x: pageX, y: pageY, w: width, h: height });
+        });
+      } else {
+        resolve(null);
+      }
+    });
+  };
+
+  const checkFirstTimeUser = async () => {
+    try {
+      const hasSeen = await AsyncStorage.getItem('has_seen_tutorial');
+      if (!hasSeen) {
+
+        // Measure all elements dynamically
+        const enquiredLayout = await measureElement(enquiredBtnRef);
+        const buySellLayout = await measureElement(buySellRef);
+        const searchLayout = await measureElement(searchBarRef);
+
+        const steps = [];
+
+        if (enquiredLayout) {
+          steps.push({
+            target: enquiredLayout,
+            title: "Check Inquiries",
+            description: "Access all your property inquiries and chats here.",
+            position: 'bottom'
+          });
+        }
+
+        if (buySellLayout) {
+          steps.push({
+            target: buySellLayout,
+            title: "Buy & Sell Modes",
+            description: "Switch between buying and selling properties easily.",
+            position: 'bottom'
+          });
+        }
+
+        if (searchLayout) {
+          steps.push({
+            target: searchLayout,
+            title: "Search Properties",
+            description: "Find your dream home by searching for locations or keywords.",
+            position: 'bottom'
+          });
+        }
+
+        if (steps.length > 0) {
+          setTutorialSteps(steps);
+          setTutorialVisible(true);
+        }
+      }
+    } catch (e) {
+      console.log("Tutorial check failed", e);
+    }
+  };
+
+  const handleTutorialComplete = async () => {
+    setTutorialVisible(false);
+    await AsyncStorage.setItem('has_seen_tutorial', 'true');
+  };
 
   useEffect(() => {
     Animated.loop(
@@ -157,7 +244,7 @@ export default function HomePage() {
         <Text style={styles.logoSangrur}>Sangrur<Text style={styles.logoEstate}>Estate</Text></Text>
       </View>
 
-      <View style={styles.compactModeSwitcher}>
+      <View style={styles.compactModeSwitcher} ref={buySellRef} collapsable={false}>
         <TouchableOpacity
           style={[styles.miniTab, mode === 'buy' && styles.miniTabActive]}
           onPress={() => setMode('buy')}
@@ -172,14 +259,24 @@ export default function HomePage() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity onPress={() => router.push('/ProfilePage')} style={styles.miniAvatarContainer}>
-        <Image source={require('../assets/images/cool_avatar.png')} style={styles.miniAvatar} contentFit="cover" transition={200} />
-      </TouchableOpacity>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <TouchableOpacity
+          onPress={() => router.push('/InquiredPropertiesPage')}
+          style={styles.miniAvatarContainer}
+          ref={enquiredBtnRef}
+          collapsable={false}
+        >
+          <Ionicons name="chatbubble-ellipses-outline" size={20} color="#1a1f36" />
+        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push('/ProfilePage')} style={styles.miniAvatarContainer}>
+          <Image source={require('../assets/images/cool_avatar.png')} style={styles.miniAvatar} contentFit="cover" transition={200} />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 
   const renderSearchSection = () => (
-    <View style={styles.compactSearchSection}>
+    <View style={styles.compactSearchSection} ref={searchBarRef} collapsable={false}>
       <View style={styles.compactSearchBar}>
         <Ionicons name="search-outline" size={18} color="#8890a6" style={{ marginRight: 10 }} />
         <TextInput
@@ -425,6 +522,12 @@ export default function HomePage() {
         )}
       </SafeAreaView>
 
+      <TutorialOverlay
+        visible={tutorialVisible}
+        steps={tutorialSteps}
+        onComplete={handleTutorialComplete}
+      />
+
       <Modal animationType="slide" transparent={true} visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
         <TouchableOpacity
           style={styles.modalContainer}
@@ -529,7 +632,10 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1.5,
     borderColor: '#f0f0f0',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff'
   },
   miniAvatar: { width: '100%', height: '100%' },
 
