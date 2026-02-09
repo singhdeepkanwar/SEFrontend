@@ -17,7 +17,11 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
 import { getProperties, toggleFavorite, inquireProperty, getInquiries, getAmenities, MEDIA_BASE_URL } from '../services/api';
 
-const { width } = Dimensions.get('window');
+
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import TutorialOverlay from '../components/TutorialOverlay';
+
+const { width, height } = Dimensions.get('window');
 
 export default function PropertyDetailsPage() {
   const { id } = useLocalSearchParams();
@@ -31,7 +35,15 @@ export default function PropertyDetailsPage() {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [modalImageIndex, setModalImageIndex] = useState(0);
   const [isModalVisible, setIsModalVisible] = useState(false);
+
   const [allAmenities, setAllAmenities] = useState([]);
+
+  // Tutorial State
+  const [tutorialVisible, setTutorialVisible] = useState(false);
+  const [tutorialSteps, setTutorialSteps] = useState([]);
+
+  // Report Modal
+  const [reportModalVisible, setReportModalVisible] = useState(false);
 
   const mainScrollRef = useRef(null);
   const modalScrollRef = useRef(null);
@@ -45,25 +57,45 @@ export default function PropertyDetailsPage() {
   });
 
   const headerTranslate = scrollY.interpolate({
-    inputRange: [0, 300],
-    outputRange: [0, -10],
+    inputRange: [0, 200], // Start moving earlier
+    outputRange: [-100, 0], // Move it off-screen (-100) until scroll hits 200, then slide down to 0
     extrapolate: 'clamp',
   });
 
-  useEffect(() => {
-    if (id) fetchPropertyDetails();
-  }, [id]);
+  const checkFirstTimePropertyUser = async () => {
+    try {
+      const hasSeen = await AsyncStorage.getItem('has_seen_property_tutorial');
+      if (!hasSeen) {
+        setTutorialSteps([
+          {
+            // Correction: Buttons are Share, Save, Report. Container is Right Aligned.
+            // Right Edge: W-20. Report: Rightmost. Save: Middle.
+            // Report spans: (W-20-44) to (W-20).
+            // Save spans: (W-20-44-10-44) to (W-20-44-10).
+            // x = W - 118. OK.
+            // User requested shift right from 128. Let's try W - 123.
+            target: { x: width - 123, y: Platform.OS === 'ios' ? 54 : 20, w: 44, h: 44 }, // Shifted right by 5 pixels
+            title: "Save for Later",
+            description: "Tap the heart icon to save this property to your favorites list.",
+            position: 'bottom'
+          },
+          {
+            target: { x: 24, y: height - (Platform.OS === 'ios' ? 90 : 80), w: width - 48, h: 56 }, // Precise Footer Calc
+            title: "Send Inquiry",
+            description: "Interested? Tap here to send an inquiry directly to our team.",
+            position: 'top'
+          }
+        ]);
+        // Small delay to let page load
+        setTimeout(() => setTutorialVisible(true), 1000);
+      }
+    } catch (e) { console.log('Tutorial check failed', e); }
+  };
 
-  // Effect to scroll modal to correct image when it opens
-  useEffect(() => {
-    if (isModalVisible && modalScrollRef.current && property && property.images && property.images.length > 0) {
-      // Ensure the scroll happens after the layout is stable
-      setTimeout(() => {
-        modalScrollRef.current.scrollTo({ x: modalImageIndex * width, animated: false });
-      }, 100);
-    }
-  }, [isModalVisible, modalImageIndex, property]);
-
+  const handleTutorialComplete = async () => {
+    setTutorialVisible(false);
+    await AsyncStorage.setItem('has_seen_property_tutorial', 'true');
+  };
 
   const fetchPropertyDetails = async () => {
     try {
@@ -96,6 +128,24 @@ export default function PropertyDetailsPage() {
     }
   };
 
+  useEffect(() => {
+    if (id) {
+      fetchPropertyDetails();
+      checkFirstTimePropertyUser();
+    }
+  }, [id]);
+
+  // Effect to scroll modal to correct image when it opens
+  useEffect(() => {
+    if (isModalVisible && modalScrollRef.current && property && property.images && property.images.length > 0) {
+      // Ensure the scroll happens after the layout is stable
+      setTimeout(() => {
+        modalScrollRef.current.scrollTo({ x: modalImageIndex * width, animated: false });
+      }, 100);
+    }
+  }, [isModalVisible, modalImageIndex, property]);
+
+
   const getImageUrl = (imagePath) => {
     if (!imagePath) return require('../assets/images/property_placeholder.jpg');
     if (imagePath.startsWith('http')) return imagePath;
@@ -106,10 +156,23 @@ export default function PropertyDetailsPage() {
   const handleShare = async () => {
     if (!property) return;
     try {
-      await Share.share({
-        message: `Check out: ${property.title} for ₹${(property.price || 0).toLocaleString('en-IN')}`,
-        title: property.title,
-      });
+      const message = `Check out: ${property.title} for ₹${(property.price || 0).toLocaleString('en-IN')}`;
+      if (Platform.OS === 'web') {
+        if (navigator.share) {
+          await navigator.share({
+            title: property.title,
+            text: message,
+            url: window.location.href,
+          });
+        } else {
+          Alert.alert("Share", "Sharing is not supported on this browser. Copy the URL to share!");
+        }
+      } else {
+        await Share.share({
+          message: message,
+          title: property.title,
+        });
+      }
     } catch (error) { alert(error.message); }
   };
 
@@ -136,17 +199,17 @@ export default function PropertyDetailsPage() {
   };
 
   const handleReport = () => {
-    Alert.alert(
-      "Report Property",
-      "Why are you reporting this property?",
-      [
-        { text: "False Details", onPress: () => Alert.alert("Thank you", "We will investigate this listing.") },
-        { text: "Scam/Fraud", onPress: () => Alert.alert("Thank you", "We take fraud seriously and will check this.") },
-        { text: "Inappropriate Content", onPress: () => Alert.alert("Thank you", "We will review the content.") },
-        { text: "Cancel", style: "cancel" }
-      ]
-    );
+    setReportModalVisible(true);
   };
+
+  const confirmReport = () => {
+    setReportModalVisible(false);
+    setTimeout(() => {
+      Alert.alert("Reported", "Thank you. We will investigate this listing.");
+    }, 300);
+  };
+
+  /* REMOVED DUPLICATE confirmReport */
 
   const handleScroll = (event) => {
     const slide = Math.round(event.nativeEvent.contentOffset.x / event.nativeEvent.layoutMeasurement.width);
@@ -203,6 +266,35 @@ export default function PropertyDetailsPage() {
         </View>
       </Animated.View>
 
+      {/* Report Modal */}
+      <Modal visible={reportModalVisible} transparent={true} animationType="fade">
+        <View style={styles.modalBackground}>
+          <View style={{ width: '85%', backgroundColor: '#fff', borderRadius: 24, padding: 24, paddingBottom: 30, alignItems: 'center' }}>
+            <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+              <Ionicons name="alert-circle" size={32} color="#DC2626" />
+            </View>
+            <Text style={{ fontSize: 20, fontWeight: '700', color: '#1a1f36', marginBottom: 8, textAlign: 'center' }}>Report Property?</Text>
+            <Text style={{ fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 24, lineHeight: 22 }}>
+              Do you want to report this property? Our team will investigate ensuring no false details.
+            </Text>
+            <View style={{ flexDirection: 'row', width: '100%', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => setReportModalVisible(false)}
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#f3f4f6', alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#4b5563' }}>No, Back</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmReport}
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#DC2626', alignItems: 'center' }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>Yes, Report</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Animated.ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -241,17 +333,50 @@ export default function PropertyDetailsPage() {
           )}
 
           <View style={styles.topButtonsContainer}>
-            <TouchableOpacity style={styles.circleButton} onPress={() => router.back()}><Text style={styles.buttonIcon}>←</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.circleButton} onPress={() => router.back()}>
+              <Ionicons name="arrow-back" size={24} color="#fff" />
+            </TouchableOpacity>
             <View style={styles.topRightButtons}>
-              <TouchableOpacity style={styles.circleButton} onPress={handleShare}><Text style={styles.buttonIcon}>↗</Text></TouchableOpacity>
-              <TouchableOpacity style={[styles.circleButton, { marginLeft: 10 }]} onPress={handleToggleSave}>
-                <Text style={[styles.buttonIcon, isSaved && { color: '#ff4d4d' }]}>{isSaved ? '♥' : '♡'}</Text>
+              <TouchableOpacity style={styles.circleButton} onPress={handleShare}>
+                <Ionicons name="share-social-outline" size={22} color="#fff" />
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.circleButton, { marginLeft: 10 }]} onPress={handleReport}>
-                <Text style={[styles.buttonIcon, { fontSize: 16 }]}>⚠️</Text>
+              <TouchableOpacity style={[styles.circleButton, { marginLeft: 20 }]} onPress={handleToggleSave}>
+                <Ionicons name={isSaved ? "heart" : "heart-outline"} size={24} color={isSaved ? "#ff4d4d" : "#fff"} />
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.circleButton, { marginLeft: 20 }]} onPress={handleReport}>
+                <Ionicons name="alert-circle-outline" size={24} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Report Modal */}
+          <Modal visible={reportModalVisible} transparent={true} animationType="fade">
+            <View style={styles.modalBackground}>
+              <View style={{ width: '85%', backgroundColor: '#fff', borderRadius: 24, padding: 24, paddingBottom: 30, alignItems: 'center' }}>
+                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                  <Ionicons name="alert-circle" size={32} color="#DC2626" />
+                </View>
+                <Text style={{ fontSize: 20, fontWeight: '700', color: '#1a1f36', marginBottom: 8, textAlign: 'center' }}>Report Property?</Text>
+                <Text style={{ fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 24, lineHeight: 22 }}>
+                  Do you want to report this property? Our team will investigate ensuring no false details.
+                </Text>
+                <View style={{ flexDirection: 'row', width: '100%', gap: 12 }}>
+                  <TouchableOpacity
+                    onPress={() => setReportModalVisible(false)}
+                    style={{ flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#f3f4f6', alignItems: 'center' }}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#4b5563' }}>No, Back</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={confirmReport}
+                    style={{ flex: 1, paddingVertical: 14, borderRadius: 14, backgroundColor: '#DC2626', alignItems: 'center' }}
+                  >
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>Yes, Report</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </Modal>
         </View>
 
         <View style={styles.contentContainer}>
@@ -471,6 +596,12 @@ export default function PropertyDetailsPage() {
           )}
         </View>
       </Modal>
+
+      <TutorialOverlay
+        visible={tutorialVisible}
+        steps={tutorialSteps}
+        onComplete={handleTutorialComplete}
+      />
     </>
   );
 }
@@ -487,7 +618,8 @@ const styles = StyleSheet.create({
     right: 20,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    zIndex: 10
+    zIndex: 100, // Ensure it's above image carousel
+    elevation: 10 // Android
   },
   topRightButtons: { flexDirection: 'row' },
   // Darker translucent background for better visibility
@@ -801,7 +933,7 @@ const styles = StyleSheet.create({
   },
   agentTitle: {
     fontSize: 12,
-    color: '#8890a6',
+    color: '#E6FFFA', // Improved contrast on green background
     marginTop: 2,
   },
   agentStats: {
@@ -819,7 +951,7 @@ const styles = StyleSheet.create({
   },
   agentStatLab: {
     fontSize: 10,
-    color: '#8890a6',
+    color: '#E6FFFA', // Improved contrast on green background
   },
   agentStatDivider: {
     width: 1,
@@ -843,5 +975,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1a1f36',
     marginLeft: 10,
+  },
+  modalBackground: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

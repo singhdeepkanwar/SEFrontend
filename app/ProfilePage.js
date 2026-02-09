@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Alert, ActivityIndicator, ScrollView, TextInput, Platform } from 'react-native';
+
+import { StyleSheet, Text, View, TouchableOpacity, Alert, ActivityIndicator, ScrollView, TextInput, Platform, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -13,6 +14,15 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({ full_name: '', email: '', city: '', address: '' });
+
+  // Custom Confirmation Modal State
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalConfig, setModalConfig] = useState({ title: '', message: '', confirmText: '', onConfirm: () => { }, isDestructive: false });
+
+  const showConfirm = (title, message, confirmText, onConfirm, isDestructive = false) => {
+    setModalConfig({ title, message, confirmText, onConfirm, isDestructive });
+    setModalVisible(true);
+  };
 
   useEffect(() => {
     fetchProfile();
@@ -36,33 +46,57 @@ export default function ProfilePage() {
   };
 
   const handleLogout = async () => {
-    try {
-      const refresh = await AsyncStorage.getItem('refresh_token');
-      if (refresh) {
-        // Optional: call backend logout to blacklist the refresh token
-        await api.post('/auth/logout/', { refresh }).catch(err => console.log("Backend logout bit failed", err));
-      }
-    } catch (e) { }
+    showConfirm(
+      "Logout",
+      "Are you sure you want to logout?",
+      "Logout",
+      async () => {
+        try {
+          const refresh = await AsyncStorage.getItem('refresh_token');
+          if (refresh) {
+            await api.post('/auth/logout/', { refresh }).catch(err => console.log("Backend logout bit failed", err));
+          }
+        } catch (e) { }
 
-    await AsyncStorage.multiRemove(['access_token', 'refresh_token']);
-    router.replace('/');
+        await AsyncStorage.multiRemove(['access_token', 'refresh_token']);
+        router.replace('/');
+      },
+      true // Destructive
+    );
   };
 
   const handleDeleteAccount = () => {
-    Alert.alert("Delete Account", "Are you sure? This is permanent.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Delete", style: "destructive", onPress: async () => {
-          try {
-            await api.delete('/auth/delete-account/');
-            handleLogout();
-          } catch (e) {
-            Alert.alert("Error", "Failed to delete account.");
-          }
-        }
-      }
-    ]);
+    showConfirm(
+      "Delete Account",
+      "Are you sure? This is permanent.",
+      "Delete",
+      () => {
+        // Second Check
+        setTimeout(() => {
+          showConfirm(
+            "Final Confirmation",
+            "This action cannot be undone. All your data will be lost.",
+            "Confirm Delete",
+            async () => {
+              try {
+                await api.delete('/auth/delete-account/');
+                await AsyncStorage.multiRemove(['access_token', 'refresh_token']);
+                router.replace('/');
+              } catch (e) {
+                // If error, show simple alert as fallback or use another modal state
+                console.log("Delete failed", e);
+              }
+            },
+            true
+          );
+        }, 300); // Slight delay to allow first modal to close nicely
+      },
+      true
+    );
   };
+
+
+
   const handleSave = async () => {
     setLoading(true);
     try {
@@ -79,6 +113,30 @@ export default function ProfilePage() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Custom Confirmation Modal */}
+      <Modal visible={modalVisible} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{modalConfig.title}</Text>
+            <Text style={styles.modalMessage}>{modalConfig.message}</Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={styles.modalBtnCancel} onPress={() => setModalVisible(false)}>
+                <Text style={styles.modalBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtnConfirm, modalConfig.isDestructive && styles.modalBtnDestructive]}
+                onPress={() => {
+                  setModalVisible(false);
+                  modalConfig.onConfirm();
+                }}
+              >
+                <Text style={styles.modalBtnConfirmText}>{modalConfig.confirmText}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}><Text style={styles.backBtn}>←</Text></TouchableOpacity>
         <Text style={styles.headerTitle}>Profile</Text>
@@ -170,6 +228,7 @@ export default function ProfilePage() {
           <TouchableOpacity style={[styles.menuItem, { borderBottomWidth: 0 }]} onPress={handleDeleteAccount}>
             <Text style={[styles.menuText, { color: 'red' }]}>🗑 Delete Account</Text>
           </TouchableOpacity>
+
         </View>
       </ScrollView >
     </SafeAreaView >
@@ -208,4 +267,16 @@ const styles = StyleSheet.create({
   menuItem: { flexDirection: 'row', justifyContent: 'space-between', padding: 15, borderBottomWidth: 1, borderBottomColor: '#f0f0f0' },
   menuText: { fontSize: 16, fontWeight: '500' },
   arrow: { fontSize: 20, color: '#ccc' },
+
+  // Modal Styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: '85%', backgroundColor: '#fff', borderRadius: 20, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: '#1a1f36', marginBottom: 10 },
+  modalMessage: { fontSize: 15, color: '#666', textAlign: 'center', marginBottom: 24, lineHeight: 22 },
+  modalButtons: { flexDirection: 'row', width: '100%', gap: 12 },
+  modalBtnCancel: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#f0f0f0', alignItems: 'center' },
+  modalBtnCancelText: { fontSize: 16, fontWeight: '600', color: '#666' },
+  modalBtnConfirm: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#059669', alignItems: 'center' },
+  modalBtnDestructive: { backgroundColor: '#dc2626' },
+  modalBtnConfirmText: { fontSize: 16, fontWeight: '600', color: '#fff' },
 });

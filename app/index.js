@@ -462,8 +462,8 @@ const styles = StyleSheet.create({
   countryCodeText: { color: '#fff', fontSize: 17, fontWeight: '600' },
   phoneNumberInput: { flex: 1, height: '100%', paddingHorizontal: 16, color: '#fff', fontSize: 18, fontWeight: '500' },
 
-  otpRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 24 },
-  otpBox: { width: (width - 64 - 45) / 4, height: 75, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 16, textAlign: 'center', color: '#fff', fontSize: 32, fontWeight: '700', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.15)' },
+  otpRow: { flexDirection: 'row', justifyContent: 'center', gap: 15, marginBottom: 24 },
+  otpBox: { flex: 1, height: 75, maxWidth: 70, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 16, textAlign: 'center', color: '#fff', fontSize: 32, fontWeight: '700', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.15)' },
 
   timerRow: { alignSelf: 'center', marginBottom: 32 },
   timerText: { color: 'rgba(255,255,255,0.5)', fontSize: 14 },
