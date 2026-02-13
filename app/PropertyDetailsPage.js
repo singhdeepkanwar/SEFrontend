@@ -255,9 +255,7 @@ export default function PropertyDetailsPage() {
             <Ionicons name="arrow-back" size={24} color="#059669" />
           </TouchableOpacity>
           <View style={styles.logoContainer}>
-            <View style={styles.logoIconBgMini}>
-              <Ionicons name="home" size={14} color="#fff" />
-            </View>
+            <Image source={require('../assets/images/logo_main.png')} style={{ width: 30, height: 30, marginRight: 8 }} contentFit="contain" />
             <Text style={styles.logoSangrurMini}>Sangrur<Text style={styles.logoEstateMini}>Estate</Text></Text>
           </View>
           <TouchableOpacity style={styles.headerCircleButton} onPress={handleToggleSave}>
@@ -490,17 +488,12 @@ export default function PropertyDetailsPage() {
               <Text style={styles.agentName}>Sangrur Estate Advisor</Text>
               <Text style={styles.agentTitle}>Certified Property Expert</Text>
               <View style={styles.agentStats}>
-                <View style={styles.agentStat}><Text style={styles.agentStatVal}>12+</Text><Text style={styles.agentStatLab}>Exp. Yrs</Text></View>
-                <View style={styles.agentStatDivider} />
-                <View style={styles.agentStat}><Text style={styles.agentStatVal}>4.9/5</Text><Text style={styles.agentStatLab}>Rating</Text></View>
+                <View style={styles.agentStat}><Text style={[styles.agentStatVal, { fontSize: 13, fontWeight: '600' }]}>Verified Listings Only</Text></View>
+                <View style={[styles.agentStatDivider, { height: 16 }]} />
+                <View style={styles.agentStat}><Text style={[styles.agentStatVal, { fontSize: 13, fontWeight: '600' }]}>Trusted Local Network</Text></View>
               </View>
             </View>
           </View>
-
-          <TouchableOpacity style={styles.mapButton} onPress={() => Alert.alert("Opening Maps", "Launching navigation to property location...")}>
-            <Ionicons name="map-outline" size={20} color="#059669" />
-            <Text style={styles.mapButtonText}>View Location on Map</Text>
-          </TouchableOpacity>
 
           <View style={styles.trustSection}>
             <View style={styles.trustItem}>
