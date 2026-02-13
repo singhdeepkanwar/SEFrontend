@@ -237,10 +237,7 @@ export default function HomePage() {
   const renderHeader = () => (
     <View style={styles.header}>
       <View style={styles.logoContainer}>
-        <View style={styles.logoIconBg}>
-          <Ionicons name="home" size={16} color="#fff" />
-          <View style={styles.miniLogoBadge} />
-        </View>
+        <Image source={require('../assets/images/logo_main.png')} style={{ width: 40, height: 40, marginRight: 10 }} contentFit="contain" />
         <Text style={styles.logoSangrur}>Sangrur<Text style={styles.logoEstate}>Estate</Text></Text>
       </View>
 

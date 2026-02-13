@@ -154,18 +154,7 @@ export default function ListPropertyPage() {
     // Validation
     if (!propertyName.trim()) newErrors.propertyName = "Property Title is required";
     if (!description.trim()) newErrors.description = "Please provide a description";
-    if (!price || isNaN(parseFloat(price))) newErrors.price = "Enter a valid price";
-    if (!area || isNaN(parseFloat(area))) newErrors.area = "Enter a valid area size";
-    if (!location.trim()) newErrors.location = "Address is required";
-    if (!city.trim()) newErrors.city = "City name is required";
-    if (!propertyType) newErrors.propertyType = "Select a property type";
-    if (!listingType) newErrors.listingType = "Select listing type";
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      Alert.alert("Missing Information", "Please correct the highlighted fields before submitting.");
-      return;
-    }
+    // ... existing logs ...
 
     // Content Safety Validation
     if (!validateInput(propertyName, "Property Name") || !validateInput(description, "Description") || !validateInput(location, "Location") || !validateInput(city, "City")) return;
@@ -247,14 +236,22 @@ export default function ListPropertyPage() {
       const newImages = images.filter(img => img.isNew);
       const hasImagesChange = newImages.length > 0 || deletedImageIds.length > 0;
 
+
+
       if (isEditMode && changedKeys.length === 0 && !hasImagesChange) {
-        Alert.alert("No Changes", "You haven't made any changes to the property.");
+        if (Platform.OS === 'web') {
+          alert("No changes were made. Redirecting...");
+          window.location.href = "/ManagePropertiesPage";
+        } else {
+          Alert.alert("No Changes", "You haven't made any changes.", [
+            { text: "OK", onPress: () => router.back() }
+          ]);
+        }
         setLoading(false);
         return;
       }
 
       if (__DEV__) {
-        console.log("------------------------------------------------");
         console.log("OPTIMIZED REQUEST REPORT:");
         console.log(`Sending ONLY these fields: ${JSON.stringify(changedKeys)}`);
         if (newImages.length > 0) console.log(`Adding ${newImages.length} new images`);
@@ -304,11 +301,44 @@ export default function ListPropertyPage() {
         await createProperty(formData);
       }
 
-      Alert.alert("Success", isEditMode ? "Property Updated!" : "Property Listed!");
-      router.back();
+
+
+      if (Platform.OS === 'web') {
+        console.log("Web platform detected. Success. Redirecting...");
+        alert(isEditMode ? "Property Updated! Redirecting..." : "Property Listed! Redirecting...");
+        // Force full page reload to ensure data freshness
+        window.location.href = "/ManagePropertiesPage";
+      } else {
+        Alert.alert("Success", isEditMode ? "Property Updated!" : "Property Listed!", [
+          { text: "OK", onPress: () => router.back() }
+        ]);
+      }
     } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Failed to list property.");
+      console.error("Submission Error:", error);
+      let errorMessage = "Failed to save property.";
+
+      if (error.response) {
+        if (error.response.status === 404) {
+          errorMessage = "This property no longer exists. It may have been deleted.";
+        } else if (error.response.data && error.response.data.detail) {
+          errorMessage = error.response.data.detail;
+        }
+      }
+
+      if (Platform.OS === 'web') {
+        alert("Error: " + errorMessage);
+        if (error.response && error.response.status === 404) {
+          window.location.href = "/ManagePropertiesPage"; // Redirect back if not found
+        }
+      } else {
+        Alert.alert("Error", errorMessage, [
+          {
+            text: "OK", onPress: () => {
+              if (error.response && error.response.status === 404) router.back();
+            }
+          }
+        ]);
+      }
     } finally {
       setLoading(false);
     }
@@ -425,7 +455,7 @@ export default function ListPropertyPage() {
             value={location}
             onChangeText={(txt) => { setLocation(txt); if (errors.location) setErrors({ ...errors, location: null }); }}
           />
-          <TouchableOpacity style={styles.pinButton} onPress={() => Alert.alert("Map Feature", "Map Pin Drop here.")}><Text style={{ fontSize: 20 }}>📍</Text></TouchableOpacity>
+          <View style={styles.pinButton}><Text style={{ fontSize: 20, opacity: 0.5 }}>📍</Text></View>
         </View>
         {errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
 
@@ -470,7 +500,7 @@ export default function ListPropertyPage() {
           </View>
         )}
 
-        <Text style={styles.label}>Property Images</Text>
+        <Text style={styles.label}>Property Images (Min 3) <Text style={styles.requiredAsterisk}>*</Text></Text>
         <View style={{ height: 100, marginBottom: 20 }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center' }}>
             <TouchableOpacity style={styles.addImageBtn} onPress={handleAddImage}><Text style={{ fontSize: 30, color: '#8890a6', marginTop: -2 }}>+</Text></TouchableOpacity>
