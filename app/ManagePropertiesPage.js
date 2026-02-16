@@ -62,6 +62,16 @@ export default function ManagePropertiesPage() {
   };
 
   const handleEdit = (item) => {
+    // Prevent editing if status is PENDING
+    if (item.status === 'PENDING') {
+      if (Platform.OS === 'web') {
+        alert("Please wait till the property is verified to make changes.");
+      } else {
+        Alert.alert("Action Not Allowed", "Please wait till the property is verified to make changes.");
+      }
+      return;
+    }
+
     // Navigate to ListPropertyPage with params to pre-fill the form
     router.push({
       pathname: '/ListPropertyPage',
